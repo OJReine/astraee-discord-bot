@@ -1,0 +1,28 @@
+{
+  "name": "astraee-discord-bot",
+  "version": "1.0.0",
+  "description": "Elegant Discord bot for IMVU modeling agencies",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js",
+    "db:push": "drizzle-kit push:pg",
+    "db:studio": "drizzle-kit studio"
+  },
+  "dependencies": {
+    "@neondatabase/serverless": "^0.9.5",
+    "discord.js": "^14.22.1",
+    "drizzle-kit": "^0.20.18",
+    "drizzle-orm": "^0.29.5",
+    "node-cron": "^3.0.3",
+    "ws": "^8.18.3"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "imvu",
+    "streaming"
+  ],
+  "author": "Ladies & Babes Collective",
+  "license": "MIT"
+}
