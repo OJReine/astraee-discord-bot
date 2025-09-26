@@ -1,7 +1,7 @@
 const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder, Collection, PermissionFlagsBits } = require('discord.js');
 const { db } = require('./server/db');
 const { users, embedTemplates, streams } = require('./shared/schema');
-const { eq, and } = require('drizzle-orm');
+const { eq, and, gte, lt } = require('drizzle-orm');
 const cron = require('node-cron');
 
 // Create Discord client
@@ -199,7 +199,7 @@ async function handleEmbedCommand(interaction) {
             
             await interaction.reply({ embeds: [embed] });
         } catch (error) {
-            if (error.code === '23505') {
+            if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
                 const embed = createAstraeeEmbed('Gentle Correction', `A template named "${name}" already graces this server. Choose a new name to avoid confusion.`, '#F39C12');
                 await interaction.reply({ embeds: [embed], ephemeral: true });
             } else {
@@ -230,6 +230,49 @@ async function handleEmbedCommand(interaction) {
         );
 
         await interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+    
+    else if (subcommand === 'edit') {
+        const name = interaction.options.getString('name');
+        const title = interaction.options.getString('title');
+        const description = interaction.options.getString('description');
+        const color = interaction.options.getString('color');
+        const footer = interaction.options.getString('footer');
+
+        // Validate color format if provided
+        if (color && !color.match(/^#[0-9A-F]{6}$/i)) {
+            const embed = createAstraeeEmbed('Refinement Needed', 'Please provide color in proper hex format (e.g., #9B59B6).', '#E74C3C');
+            return interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+
+        const [existingTemplate] = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.name, name),
+                eq(embedTemplates.serverId, interaction.guild.id)
+            ));
+
+        if (!existingTemplate) {
+            const embed = createAstraeeEmbed('Template Not Found', `No template named "${name}" exists in this server's archive.`, '#E74C3C');
+            return interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+
+        // Build update object with only provided fields
+        const updateData = { updatedAt: new Date() };
+        if (title !== null) updateData.title = title;
+        if (description !== null) updateData.description = description;
+        if (color !== null) updateData.color = color;
+        if (footer !== null) updateData.footer = footer;
+
+        await db.update(embedTemplates)
+            .set(updateData)
+            .where(eq(embedTemplates.id, existingTemplate.id));
+
+        const embed = createAstraeeEmbed(
+            'Template Refined',
+            `Embed template "${name}" has been updated with elegant precision.\n\nYour changes have been preserved with ceremonial care.`
+        );
+        
+        await interaction.reply({ embeds: [embed] });
     }
     
     else if (subcommand === 'send') {
@@ -368,6 +411,19 @@ async function handleCompleteStream(interaction) {
         return interaction.reply({ embeds: [embed], ephemeral: true });
     }
 
+    // Check permissions: either stream owner or member with Manage Messages
+    const isStreamOwner = stream.modelId === interaction.user.id;
+    const hasManageMessages = interaction.member.permissions.has(PermissionFlagsBits.ManageMessages);
+    
+    if (!isStreamOwner && !hasManageMessages) {
+        const embed = createAstraeeEmbed(
+            'Graceful Restraint', 
+            'Only the stream owner or officers with proper authority may complete this stream.\n\nSeek guidance from those with ceremonial permissions.',
+            '#E74C3C'
+        );
+        return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
     // Update stream status
     await db.update(streams)
         .set({ 
@@ -400,12 +456,12 @@ function startReminderSystem() {
             todayStart.setDate(todayStart.getDate() + 1);
             todayStart.setHours(0, 0, 0, 0); // Start of tomorrow
 
-            // Find streams due tomorrow
+            // Find streams due tomorrow (between start and end of tomorrow)
             const streamsDueTomorrow = await db.select().from(streams)
                 .where(and(
                     eq(streams.status, 'active'),
-                    // Due date is tomorrow
-                    // Note: This is a simplified check, you may want to use proper date range queries
+                    gte(streams.dueDate, todayStart),
+                    lt(streams.dueDate, tomorrow)
                 ));
 
             for (const stream of streamsDueTomorrow) {

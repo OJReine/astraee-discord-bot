@@ -1,4 +1,4 @@
-const { pgTable, serial, text, timestamp, integer, boolean, jsonb } = require('drizzle-orm/pg-core');
+const { pgTable, serial, text, timestamp, integer, boolean, jsonb, unique } = require('drizzle-orm/pg-core');
 const { relations } = require('drizzle-orm');
 
 // Users table - tracks Discord users and their roles
@@ -25,7 +25,9 @@ const embedTemplates = pgTable('embed_templates', {
   serverId: text('server_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
-});
+}, (table) => ({
+  uniqueNamePerServer: unique().on(table.name, table.serverId)
+}));
 
 // Stream records table - tracks IMVU streams
 const streams = pgTable('streams', {
