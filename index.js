@@ -17,15 +17,16 @@ const client = new Client({
 // Store commands
 client.commands = new Collection();
 
-// Astraee's persona - elegant mottos for footers
+// Astraee's celestial mottos for footers - matching original BotGhost aesthetic
 const astraeeMottoes = [
-    "Order transforms creativity into legacy.",
-    "Every completion adds to the constellation.", 
-    "Accountability refines elegance.",
-    "Completion marks the measure of discipline.",
-    "Order fosters reliability.",
-    "Structure reveals beauty in purpose.",
-    "Discipline creates lasting artistry."
+    "Even the stars follow patterns of order.",
+    "The stars shine brightest with your care.",
+    "Even the stars rest in quiet moments.",
+    "The stars align for those who dare to dream.",
+    "Grace in action reflects the harmony within.",
+    "Patience is the finest art.",
+    "Even the stars whisper of time's gentle pull.",
+    "Grace awaits your light."
 ];
 
 const getRandomMotto = () => {
@@ -42,14 +43,157 @@ const createAstraeeEmbed = (title, description, color = '#9B59B6') => {
         .setTimestamp();
 };
 
-// Generate unique stream ID
+// Generate unique stream ID (10 characters to match original)
 const generateStreamId = () => {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let result = '';
-    for (let i = 0; i < 8; i++) {
+    for (let i = 0; i < 10; i++) {
         result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+};
+
+// Create stream created embed - matches original BotGhost design
+const createStreamCreatedEmbed = (user, guild, streamId, itemName, shop, dueDate, days, creator) => {
+    const shopName = shop === 'nina-babes' ? 'Nina Babes' : 'Wildethorn Ladies';
+    const dueUnix = Math.floor(dueDate.getTime() / 1000);
+    const nowUnix = Math.floor(Date.now() / 1000);
+    
+    return new EmbedBuilder()
+        .setAuthor({ 
+            name: user.username, 
+            iconURL: user.displayAvatarURL() 
+        })
+        .setThumbnail(guild.iconURL())
+        .setTitle('✦ Stream Tracker Log ✦')
+        .setDescription(`A new stream has been registered. Details are below—please follow the workflow until the due date.✦
+
+Model: <@${user.id}>
+
+Items: ${itemName}
+
+Due: <t:${dueUnix}:D> in ${days} days${creator ? `\n\nCreator: <@${creator.id}>` : ''}
+
+Stream ID: ${streamId}`)
+        .setColor('#9B59B6')
+        .setFooter({ text: `❖ ${getRandomMotto()} ❖ - Astraee | Created: <t:${nowUnix}:D>` })
+        .setTimestamp();
+};
+
+// Create stream created DM embed
+const createStreamCreatedDMEmbed = (streamId, itemName, dueDate) => {
+    const dueUnix = Math.floor(dueDate.getTime() / 1000);
+    const nowUnix = Math.floor(Date.now() / 1000);
+    
+    return new EmbedBuilder()
+        .setTitle('✦ Greetings, radiant star! ✦')
+        .setDescription(`Your L&B stream has been created. Retain these details for your records and use them with /completestream when complete:
+
+Stream ID: ${streamId}
+
+Items: ${itemName}
+
+Due Date: <t:${dueUnix}:D>
+
+Next Step: When your stream is complete, use /completestream stream_id:${streamId} to mark it done.
+
+Keep this ID safe—your brilliance guides the cosmos!`)
+        .setColor('#9B59B6')
+        .setFooter({ text: `❖ The stars shine brightest with your care. ❖ - Astraee | Created: <t:${nowUnix}:D>` })
+        .setTimestamp();
+};
+
+// Create active streams embed with server branding
+const createActiveStreamsEmbed = (guild, streamList, totalStreams) => {
+    const nowUnix = Math.floor(Date.now() / 1000);
+    
+    return new EmbedBuilder()
+        .setAuthor({ 
+            name: guild.name 
+        })
+        .setThumbnail(guild.iconURL())
+        .setTitle('✦ Active Streams Constellation ✦')
+        .setDescription(`Behold the current alignments:
+
+${streamList}
+
+Nurture these collaborations with grace.`)
+        .setColor('#9B59B6')
+        .setFooter({ text: `❖ The stars align for those who dare to dream. ❖ - Astraee | Total Streams: ${totalStreams}` })
+        .setTimestamp();
+};
+
+// Create no active streams embed
+const createNoActiveStreamsEmbed = () => {
+    const nowUnix = Math.floor(Date.now() / 1000);
+    
+    return new EmbedBuilder()
+        .setTitle('✦ Active Streams Overview ✦')
+        .setDescription('There are currently no active streams in the constellation. Check back when new collaborations align.')
+        .setColor('#9B59B6')
+        .setFooter({ text: `❖ Even the stars rest in quiet moments. ❖ - Astraee | At: <t:${nowUnix}:D>` })
+        .setTimestamp();
+};
+
+// Create stream completion embed for channel posting
+const createStreamCompletionEmbed = (guild, model, itemName, streamId, dueDate) => {
+    const dueUnix = Math.floor(dueDate.getTime() / 1000);
+    const nowUnix = Math.floor(Date.now() / 1000);
+    
+    return new EmbedBuilder()
+        .setAuthor({ 
+            name: guild.name 
+        })
+        .setThumbnail(guild.iconURL())
+        .setTitle('✦ Stream Completion Log ✦')
+        .setDescription(`A stream has reached its harmonious end. Details below:
+
+Model: <@${model.id}>
+
+Items: ${itemName}
+
+Original Due: <t:${dueUnix}:D>
+
+Well done—your light shines brighter.`)
+        .setColor('#9B59B6')
+        .setFooter({ text: `❖ Grace in action reflects the harmony within. ❖ - Astraee | Stream ID: ${streamId} | Completed: <t:${nowUnix}:F>` })
+        .setTimestamp();
+};
+
+// Create stream not found embed
+const createStreamNotFoundEmbed = () => {
+    return new EmbedBuilder()
+        .setTitle('✦ Stream Not Found ✦')
+        .setDescription('No alignment matches that ID. Verify and try again.')
+        .setColor('#E74C3C')
+        .setFooter({ text: '❖ Patience is the finest art. ❖ - Astraee' })
+        .setTimestamp();
+};
+
+// Create stream reminder embed for channels
+const createStreamReminderEmbed = (reminderList) => {
+    const nowUnix = Math.floor(Date.now() / 1000);
+    
+    return new EmbedBuilder()
+        .setTitle('✦ Stream Reminders: Alignments Approaching ✦')
+        .setDescription(`Celestial alert: These streams draw near their zenith. Nurture them before the stars shift.
+
+${reminderList}`)
+        .setColor('#F39C12')
+        .setFooter({ text: `❖ Even the stars whisper of time's gentle pull. ❖ - Astraee | <t:${nowUnix}:D>` })
+        .setTimestamp();
+};
+
+// Create stream reminder DM embed
+const createStreamReminderDMEmbed = (streamId, itemName, dueDate) => {
+    const dueUnix = Math.floor(dueDate.getTime() / 1000);
+    
+    return new EmbedBuilder()
+        .setTitle('✦ Stream Reminder ✦')
+        .setDescription(`Radiant one, your stream ${streamId} approaches its due: <t:${dueUnix}:D>. Items: ${itemName}. Complete with /completestream when ready.`)
+        .setColor('#F39C12')
+        .setFooter({ text: '❖ Grace awaits your light. ❖ - Astraee' })
+        .setTimestamp();
 };
 
 // Register commands
@@ -194,7 +338,7 @@ async function handleEmbedCommand(interaction) {
 
             const embed = createAstraeeEmbed(
                 'Template Preserved',
-                `Embed template "${name}" has been stored with elegant precision.\\n\\nIt shall serve you well in future endeavors.`
+                `Embed template "${name}" has been stored with elegant precision.\n\nIt shall serve you well in future endeavors.`
             );
             
             await interaction.reply({ embeds: [embed] });
@@ -215,18 +359,18 @@ async function handleEmbedCommand(interaction) {
         if (templates.length === 0) {
             const embed = createAstraeeEmbed(
                 'Empty Archive',
-                'No embed templates have been created yet.\\n\\nBegin your collection with `/embed create`.'
+                'No embed templates have been created yet.\n\nBegin your collection with `/embed create`.'
             );
             return interaction.reply({ embeds: [embed], ephemeral: true });
         }
 
         const templateList = templates.map((t, i) => 
             `${i + 1}. **${t.name}** ${t.title ? `- *${t.title}*` : ''}`
-        ).join('\\n');
+        ).join('\n');
 
         const embed = createAstraeeEmbed(
             'Template Archive',
-            `Your stored templates:\\n\\n${templateList}\\n\\n*Use \`/embed send\` to deploy them with grace.*`
+            `Your stored templates:\n\n${templateList}\n\n*Use \`/embed send\` to deploy them with grace.*`
         );
 
         await interaction.reply({ embeds: [embed], ephemeral: true });
@@ -309,7 +453,7 @@ async function handleEmbedCommand(interaction) {
     }
 }
 
-// Stream create handler
+// Stream create handler - updated to match original BotGhost design
 async function handleStreamCreate(interaction) {
     const itemName = interaction.options.getString('item_name');
     const shop = interaction.options.getString('shop');
@@ -333,28 +477,36 @@ async function handleStreamCreate(interaction) {
             serverId: interaction.guild.id
         });
 
-        const embed = createAstraeeEmbed(
-            'Stream Registered',
-            `**Stream ID:** \`${streamId}\`\\n**Item:** ${itemName}\\n**Shop:** ${shop === 'nina-babes' ? 'Nina Babes' : 'Wildethorn Ladies'}\\n**Due:** <t:${Math.floor(dueDate.getTime() / 1000)}:F>\\n**Days Remaining:** ${days}\\n\\nYour commitment has been recorded with ceremonial precision.`
+        // Create embed using original BotGhost design
+        const embed = createStreamCreatedEmbed(
+            interaction.user, 
+            interaction.guild, 
+            streamId, 
+            itemName, 
+            shop, 
+            dueDate, 
+            days, 
+            creator
         );
 
-        await interaction.reply({ embeds: [embed] });
+        // Send main response with plain text for tagging before embed
+        let responseText = '';
+        if (creator) {
+            responseText += `<@${creator.id}> `;
+        }
+        responseText += `<@${interaction.user.id}>`;
 
-        // Send DM confirmation
+        await interaction.reply({ 
+            content: responseText,
+            embeds: [embed] 
+        });
+
+        // Send DM confirmation using original design
         try {
-            const dmEmbed = createAstraeeEmbed(
-                'Stream Confirmation',
-                `Your stream has been registered:\\n\\n**Stream ID:** \`${streamId}\`\\n**Item:** ${itemName}\\n**Due:** <t:${Math.floor(dueDate.getTime() / 1000)}:F>\\n\\nMay your creative endeavors flourish.`
-            );
-            
+            const dmEmbed = createStreamCreatedDMEmbed(streamId, itemName, dueDate);
             await interaction.user.send({ embeds: [dmEmbed] });
         } catch (error) {
             console.log('Could not send DM to user:', error.message);
-        }
-
-        // Tag creator if specified
-        if (creator) {
-            await interaction.followUp(`${creator}, a new stream awaits your guidance: **${itemName}** (ID: \`${streamId}\`)`);
         }
 
     } catch (error) {
@@ -363,7 +515,7 @@ async function handleStreamCreate(interaction) {
     }
 }
 
-// Active streams handler
+// Active streams handler - updated to match original BotGhost design
 async function handleActiveStreams(interaction) {
     const activeStreams = await db.select().from(streams)
         .where(and(
@@ -372,30 +524,27 @@ async function handleActiveStreams(interaction) {
         ));
 
     if (activeStreams.length === 0) {
-        const embed = createAstraeeEmbed(
-            'Peaceful Quiet',
-            'No active streams require attention at this moment.\\n\\nAll is in harmonious order.'
-        );
+        const embed = createNoActiveStreamsEmbed();
         return interaction.reply({ embeds: [embed], ephemeral: true });
     }
 
     const now = new Date();
     const streamList = activeStreams.map(stream => {
         const daysRemaining = Math.ceil((stream.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const dueUnix = Math.floor(stream.dueDate.getTime() / 1000);
         const status = daysRemaining < 0 ? '🔴 Overdue' : daysRemaining <= 1 ? '🟡 Due Soon' : '🟢 Active';
         
-        return `**${stream.streamId}** - ${stream.itemName}\\n*${stream.shop === 'nina-babes' ? 'Nina Babes' : 'Wildethorn Ladies'}* | ${status} (${daysRemaining > 0 ? daysRemaining : Math.abs(daysRemaining)} days)`;
-    }).join('\\n\\n');
+        // Format to match original BotGhost design
+        return `**${stream.streamId}** - ${stream.itemName}
+<@${stream.modelId}> | <t:${dueUnix}:D> | ${status}`;
+    }).join('\n\n');
 
-    const embed = createAstraeeEmbed(
-        'Active Streams Registry',
-        `Current streams requiring attention:\\n\\n${streamList}\\n\\n*Use \`/completestream\` to archive finished work.*`
-    );
+    const embed = createActiveStreamsEmbed(interaction.guild, streamList, activeStreams.length);
 
     await interaction.reply({ embeds: [embed], ephemeral: true });
 }
 
-// Complete stream handler
+// Complete stream handler - updated to match original BotGhost design
 async function handleCompleteStream(interaction) {
     const streamId = interaction.options.getString('stream_id').toUpperCase();
 
@@ -407,7 +556,7 @@ async function handleCompleteStream(interaction) {
         ));
 
     if (!stream) {
-        const embed = createAstraeeEmbed('Stream Not Found', `No active stream with ID \`${streamId}\` exists in this server's records.`, '#E74C3C');
+        const embed = createStreamNotFoundEmbed();
         return interaction.reply({ embeds: [embed], ephemeral: true });
     }
 
@@ -433,15 +582,49 @@ async function handleCompleteStream(interaction) {
         })
         .where(eq(streams.id, stream.id));
 
-    const embed = createAstraeeEmbed(
-        'Stream Completed',
-        `**${stream.itemName}** has been marked complete with ceremonial honor.\\n\\n**Stream ID:** \`${streamId}\`\\n**Completed by:** ${interaction.user}\\n\\nYour dedication adds beauty to our constellation of achievements.`
+    // Get model user for embed
+    const model = await interaction.guild.members.fetch(stream.modelId);
+
+    // Create completion embed using original design
+    const completionEmbed = createStreamCompletionEmbed(
+        interaction.guild, 
+        model.user, 
+        stream.itemName, 
+        streamId, 
+        stream.dueDate
     );
 
-    await interaction.reply({ embeds: [embed] });
+    // Post to stream-tracker channel with officer tag
+    const streamTrackerChannel = interaction.guild.channels.cache.find(
+        channel => channel.name === 'stream-tracker' || channel.name === '『stream-tracker』'
+    );
+
+    if (streamTrackerChannel) {
+        // Find officer role or use a default tag pattern
+        const officerRole = interaction.guild.roles.cache.find(
+            role => role.name.toLowerCase().includes('officer') || 
+                   role.name.toLowerCase().includes('staff') ||
+                   role.permissions.has(PermissionFlagsBits.ManageMessages)
+        );
+
+        const tagText = officerRole ? `<@&${officerRole.id}>` : '';
+        
+        await streamTrackerChannel.send({ 
+            content: tagText,
+            embeds: [completionEmbed] 
+        });
+    }
+
+    // Reply to user with confirmation
+    const confirmEmbed = createAstraeeEmbed(
+        'Completion Recorded',
+        `Stream **${streamId}** has been marked complete and archived in the cosmic registry.\n\nYour dedication shines eternal in our constellation.`
+    );
+
+    await interaction.reply({ embeds: [confirmEmbed], ephemeral: true });
 }
 
-// Reminder system
+// Reminder system - updated to match original BotGhost design
 function startReminderSystem() {
     // Run every day at 9:00 AM to check for streams due tomorrow
     cron.schedule('0 9 * * *', async () => {
@@ -464,26 +647,56 @@ function startReminderSystem() {
                     lt(streams.dueDate, tomorrow)
                 ));
 
+            if (streamsDueTomorrow.length === 0) return;
+
+            // Group by server for channel reminders
+            const serverStreams = new Map();
             for (const stream of streamsDueTomorrow) {
+                if (!serverStreams.has(stream.serverId)) {
+                    serverStreams.set(stream.serverId, []);
+                }
+                serverStreams.get(stream.serverId).push(stream);
+            }
+
+            // Send reminders per server
+            for (const [serverId, streams] of serverStreams) {
                 try {
-                    const guild = client.guilds.cache.get(stream.serverId);
+                    const guild = client.guilds.cache.get(serverId);
                     if (!guild) continue;
 
                     const streamTrackerChannel = guild.channels.cache.find(
                         channel => channel.name === 'stream-tracker' || channel.name === '『stream-tracker』'
                     );
 
-                    if (streamTrackerChannel) {
-                        const embed = createAstraeeEmbed(
-                            'Gentle Reminder',
-                            `<@${stream.modelId}>, your stream approaches its destined completion:\\n\\n**Stream ID:** \`${stream.streamId}\`\\n**Item:** ${stream.itemName}\\n**Due:** <t:${Math.floor(stream.dueDate.getTime() / 1000)}:F>\\n\\nMay you find grace in timely completion.`,
-                            '#F39C12'
-                        );
+                    if (streamTrackerChannel && streams.length > 0) {
+                        // Create reminder list for channel embed
+                        const reminderList = streams.map(stream => {
+                            const dueUnix = Math.floor(stream.dueDate.getTime() / 1000);
+                            return `**${stream.streamId}** - ${stream.itemName}
+<@${stream.modelId}> | Due: <t:${dueUnix}:D>`;
+                        }).join('\n\n');
 
-                        await streamTrackerChannel.send({ embeds: [embed] });
+                        const channelEmbed = createStreamReminderEmbed(reminderList);
+                        await streamTrackerChannel.send({ embeds: [channelEmbed] });
                     }
+
+                    // Send individual DM reminders
+                    for (const stream of streams) {
+                        try {
+                            const user = await client.users.fetch(stream.modelId);
+                            const dmEmbed = createStreamReminderDMEmbed(
+                                stream.streamId, 
+                                stream.itemName, 
+                                stream.dueDate
+                            );
+                            await user.send({ embeds: [dmEmbed] });
+                        } catch (dmError) {
+                            console.log(`Could not send DM reminder to user ${stream.modelId}:`, dmError.message);
+                        }
+                    }
+
                 } catch (error) {
-                    console.error('Error sending reminder for stream:', stream.streamId, error);
+                    console.error('Error sending reminders for server:', serverId, error);
                 }
             }
         } catch (error) {
