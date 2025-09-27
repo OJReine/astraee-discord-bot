@@ -3,6 +3,19 @@ const { db } = require('./server/db');
 const { users, embedTemplates, streams } = require('./shared/schema');
 const { eq, and, gte, lt } = require('drizzle-orm');
 const cron = require('node-cron');
+const express = require('express');
+
+// Create Express app for UptimeRobot keep-alive
+const app = express();
+const port = process.env.PORT || 3000;
+
+app.get('/', (req, res) => {
+  res.send('✦ Astraee is alive and serving with elegance ✦');
+});
+
+app.listen(port, () => {
+  console.log(`Web server running on port ${port}`);
+});
 
 // Create Discord client
 const client = new Client({
@@ -225,7 +238,7 @@ const commands = [
             subcommand.setName('send')
                 .setDescription('Send a stored embed to a channel')
                 .addStringOption(option => option.setName('name').setDescription('Template name to send').setRequired(true))
-                .addChannelOption(option => option.setName('channel').setDescription('Channel to send to'))),
+                .addChannelOption(option => option.setName('channel').setDescription('Channel to send to').setRequired(true))),
 
     // Stream Tracking Commands  
     new SlashCommandBuilder()
@@ -239,17 +252,38 @@ const commands = [
             ))
         .addIntegerOption(option => option.setName('days').setDescription('Days until due (default: 7)').setMinValue(1).setMaxValue(30))
         .addStringOption(option => option.setName('item_link').setDescription('Link to the IMVU item'))
-        .addUserOption(option => option.setName('creator').setDescription('Creator/Officer to tag')),
+        .addUserOption(option => option.setName('creator').setDescription('Creator/Officer to tag'))
+        .addChannelOption(option => option.setName('channel').setDescription('Channel to post stream log (optional)')),
 
     new SlashCommandBuilder()
         .setName('activestreams')
         .setDescription('View all active streams with days remaining')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages),
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+        .addChannelOption(option => option.setName('channel').setDescription('Channel to send the list to (optional)')),
 
     new SlashCommandBuilder()
         .setName('completestream')
         .setDescription('Mark a stream as complete and archive it')
         .addStringOption(option => option.setName('stream_id').setDescription('Stream ID to complete').setRequired(true))
+        .addChannelOption(option => option.setName('channel').setDescription('Channel to post completion log (optional)')),
+
+    // Additional utility commands
+    new SlashCommandBuilder()
+        .setName('streaminfo')
+        .setDescription('Get detailed information about a specific stream')
+        .addStringOption(option => option.setName('stream_id').setDescription('Stream ID to look up').setRequired(true)),
+
+    new SlashCommandBuilder()
+        .setName('streamlist')
+        .setDescription('List streams with optional filters')
+        .addStringOption(option => option.setName('status').setDescription('Filter by status')
+            .addChoices(
+                { name: 'Active', value: 'active' },
+                { name: 'Completed', value: 'completed' },
+                { name: 'Overdue', value: 'overdue' }
+            ))
+        .addUserOption(option => option.setName('model').setDescription('Filter by model'))
+        .addChannelOption(option => option.setName('channel').setDescription('Channel to send the list to (optional)'))
 ];
 
 // Register commands with Discord
@@ -290,6 +324,12 @@ client.on('interactionCreate', async interaction => {
         }
         else if (commandName === 'completestream') {
             await handleCompleteStream(interaction);
+        }
+        else if (commandName === 'streaminfo') {
+            await handleStreamInfo(interaction);
+        }
+        else if (commandName === 'streamlist') {
+            await handleStreamList(interaction);
         }
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
@@ -421,7 +461,7 @@ async function handleEmbedCommand(interaction) {
     
     else if (subcommand === 'send') {
         const name = interaction.options.getString('name');
-        const channel = interaction.options.getChannel('channel') || interaction.channel;
+        const channel = interaction.options.getChannel('channel');
 
         const [template] = await db.select().from(embedTemplates)
             .where(and(
@@ -460,6 +500,7 @@ async function handleStreamCreate(interaction) {
     const days = interaction.options.getInteger('days') || 7;
     const itemLink = interaction.options.getString('item_link');
     const creator = interaction.options.getUser('creator');
+    const targetChannel = interaction.options.getChannel('channel');
 
     const streamId = generateStreamId();
     const dueDate = new Date();
@@ -500,6 +541,18 @@ async function handleStreamCreate(interaction) {
             content: responseText,
             embeds: [embed] 
         });
+
+        // If a specific channel is provided, also post there
+        if (targetChannel) {
+            try {
+                await targetChannel.send({ 
+                    content: responseText,
+                    embeds: [embed] 
+                });
+            } catch (error) {
+                console.log('Could not send to target channel:', error.message);
+            }
+        }
 
         // Send DM confirmation using original design
         try {
@@ -705,6 +758,99 @@ function startReminderSystem() {
     });
     
     console.log('✦ Reminder system initiated with elegant precision ✦');
+}
+
+// Stream info handler - get detailed information about a specific stream
+async function handleStreamInfo(interaction) {
+    const streamId = interaction.options.getString('stream_id').toUpperCase();
+
+    const [stream] = await db.select().from(streams)
+        .where(and(
+            eq(streams.streamId, streamId),
+            eq(streams.serverId, interaction.guild.id)
+        ));
+
+    if (!stream) {
+        const embed = createStreamNotFoundEmbed();
+        return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
+    const dueUnix = Math.floor(stream.dueDate.getTime() / 1000);
+    const now = new Date();
+    const daysRemaining = Math.ceil((stream.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    const status = daysRemaining < 0 ? '🔴 Overdue' : daysRemaining <= 1 ? '🟡 Due Soon' : '🟢 Active';
+    
+    const shopName = stream.shop === 'nina-babes' ? 'Nina Babes' : 'Wildethorn Ladies';
+    
+    const embed = createAstraeeEmbed(
+        'Stream Information',
+        `**Stream ID:** ${stream.streamId}
+**Model:** <@${stream.modelId}>
+**Items:** ${stream.itemName}
+**Shop:** ${shopName}
+**Status:** ${status}
+**Due Date:** <t:${dueUnix}:D> (${daysRemaining} days)
+**Created:** <t:${Math.floor(stream.createdAt.getTime() / 1000)}:D>${stream.itemLink ? `\n**Item Link:** ${stream.itemLink}` : ''}${stream.creatorId ? `\n**Creator:** <@${stream.creatorId}>` : ''}`
+    );
+
+    await interaction.reply({ embeds: [embed], ephemeral: true });
+}
+
+// Stream list handler - list streams with optional filters
+async function handleStreamList(interaction) {
+    const status = interaction.options.getString('status');
+    const model = interaction.options.getUser('model');
+    const targetChannel = interaction.options.getChannel('channel');
+
+    let whereConditions = [eq(streams.serverId, interaction.guild.id)];
+    
+    if (status) {
+        whereConditions.push(eq(streams.status, status));
+    }
+    
+    if (model) {
+        whereConditions.push(eq(streams.modelId, model.id));
+    }
+
+    const streamList = await db.select().from(streams)
+        .where(and(...whereConditions));
+
+    if (streamList.length === 0) {
+        const embed = createAstraeeEmbed(
+            'No Streams Found',
+            'No streams match your criteria. Try adjusting your filters or create a new stream.'
+        );
+        
+        if (targetChannel) {
+            await targetChannel.send({ embeds: [embed] });
+            await interaction.reply({ content: 'Stream list sent to the specified channel.', ephemeral: true });
+        } else {
+            await interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+        return;
+    }
+
+    const now = new Date();
+    const streamDetails = streamList.map(stream => {
+        const daysRemaining = Math.ceil((stream.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+        const dueUnix = Math.floor(stream.dueDate.getTime() / 1000);
+        const statusIcon = daysRemaining < 0 ? '🔴' : daysRemaining <= 1 ? '🟡' : '🟢';
+        
+        return `**${stream.streamId}** ${statusIcon} - ${stream.itemName}
+<@${stream.modelId}> | Due: <t:${dueUnix}:D> | Status: ${stream.status}`;
+    }).join('\n\n');
+
+    const embed = createAstraeeEmbed(
+        'Stream List',
+        `Found ${streamList.length} stream(s):\n\n${streamDetails}`
+    );
+
+    if (targetChannel) {
+        await targetChannel.send({ embeds: [embed] });
+        await interaction.reply({ content: 'Stream list sent to the specified channel.', ephemeral: true });
+    } else {
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+    }
 }
 
 // Error handling

@@ -6,6 +6,7 @@
   "scripts": {
     "start": "node index.js",
     "dev": "node index.js",
+    "setup": "npm install && echo 'Please edit .env file with your Discord token and database URL, then run: npm run db:push'",
     "db:push": "drizzle-kit push:pg",
     "db:studio": "drizzle-kit studio"
   },
@@ -14,6 +15,7 @@
     "discord.js": "^14.22.1",
     "drizzle-kit": "^0.20.18",
     "drizzle-orm": "^0.29.5",
+    "express": "^4.18.2",
     "node-cron": "^3.0.3",
     "ws": "^8.18.3"
   },

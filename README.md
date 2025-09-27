@@ -22,41 +22,20 @@ Astraee is a sophisticated Discord bot designed specifically for IMVU modeling a
 - Celebrates achievements while encouraging accountability
 - Formal but never cold tone that embodies "structure as beauty"
 
-## ✦ Setup Instructions ✦
+## ✦ Quick Start ✦
 
 ### Prerequisites
 - Node.js 18+ installed
 - PostgreSQL database (or Neon/Supabase)
 - Discord Bot Token
 
-### 1. Create Discord Bot Application
-1. Go to [Discord Developer Portal](https://discord.com/developers/applications)
-2. Click "New Application" and name it "Astraee" (or your preferred name)
-3. Go to "Bot" section and click "Add Bot"
-4. Under "Token", click "Reset Token" and copy the token
-5. Enable these bot permissions:
-   - Send Messages
-   - Use Slash Commands  
-   - Embed Links
-   - Manage Messages (for officer commands)
-
-### 2. Invite Bot to Server
-Use this URL format (replace CLIENT_ID with your bot's Application ID):
-```
-https://discord.com/api/oauth2/authorize?client_id=CLIENT_ID&permissions=274878286848&scope=bot%20applications.commands
-```
-
-### 3. Environment Setup
-Create a `.env` file with:
-```env
-DISCORD_TOKEN=your_discord_bot_token_here
-DATABASE_URL=your_postgresql_connection_string
-```
-
-### 4. Installation & Running
+### Installation
 ```bash
 # Install dependencies
 npm install
+
+# Create .env file (copy from env.example)
+# Add your DISCORD_TOKEN and DATABASE_URL
 
 # Push database schema
 npm run db:push
@@ -64,6 +43,14 @@ npm run db:push
 # Start the bot
 npm start
 ```
+
+### 📖 Detailed Setup Guide
+For complete setup instructions, see **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** - it includes:
+- Step-by-step Discord bot creation
+- Database setup options (Neon, Supabase, local)
+- Server configuration
+- Troubleshooting guide
+- Feature overview
 
 ## ✦ Database Schema ✦
 
