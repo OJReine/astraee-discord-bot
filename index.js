@@ -84,7 +84,7 @@ const createStreamCreatedEmbed = (user, guild, streamId, itemName, shop, dueDate
 **Items:** ${itemName}
 **Due:** <t:${dueUnix}:D> in ${days} days${creator ? `\n**Creator:** <@${creator.id}>` : ''}
 **Stream ID:** ${streamId}`)
-        .setColor('#9B59B6')
+        .setColor('#FFB6C1')
         .setFooter({ text: `❖ ${getRandomMotto()} ❖ - Astraee | Created: ${new Date().toLocaleDateString()}` })
         .setTimestamp();
 };
@@ -105,7 +105,7 @@ const createStreamCreatedDMEmbed = (streamId, itemName, dueDate) => {
 **Next Step:** When your stream is complete, use /completestream stream_id:${streamId} to mark it done.
 
 Keep this ID safe—your brilliance guides the cosmos!`)
-        .setColor('#9B59B6')
+        .setColor('#FFB6C1')
         .setFooter({ text: `❖ The stars shine brightest with your care. ❖ - Astraee | Created: ${new Date().toLocaleDateString()}` })
         .setTimestamp();
 };
@@ -125,7 +125,7 @@ const createActiveStreamsEmbed = (guild, streamList, totalStreams) => {
 ${streamList}
 
 Nurture these collaborations with grace.`)
-        .setColor('#9B59B6')
+        .setColor('#DDA0DD')
         .setFooter({ text: `❖ The stars align for those who dare to dream. ❖ - Astraee | Total Streams: ${totalStreams}` })
         .setTimestamp();
 };
@@ -137,7 +137,7 @@ const createNoActiveStreamsEmbed = () => {
     return new EmbedBuilder()
         .setTitle('✦ Active Streams Overview ✦')
         .setDescription('There are currently no active streams in the constellation. Check back when new collaborations align.')
-        .setColor('#9B59B6')
+        .setColor('#DEB887')
         .setFooter({ text: `❖ Even the stars rest in quiet moments. ❖ - Astraee | At: ${new Date().toLocaleDateString()}` })
         .setTimestamp();
 };
@@ -161,7 +161,7 @@ const createStreamCompletionEmbed = (guild, model, itemName, streamId, dueDate) 
 **Original Due:** <t:${dueUnix}:D>
 
 Well done—your light shines brighter.`)
-        .setColor('#27AE60')
+        .setColor('#98FB98')
         .setFooter({ text: `❖ Grace in action reflects the harmony within. ❖ - Astraee | Stream ID: ${streamId} | Completed: ${new Date().toLocaleDateString()}` })
         .setTimestamp();
 };
@@ -171,7 +171,7 @@ const createStreamNotFoundEmbed = () => {
     return new EmbedBuilder()
         .setTitle('✦ Stream Not Found ✦')
         .setDescription('No alignment matches that ID. Verify and try again.')
-        .setColor('#E74C3C')
+        .setColor('#F0E68C')
         .setFooter({ text: '❖ Patience is the finest art. ❖ - Astraee' })
         .setTimestamp();
 };
@@ -607,8 +607,8 @@ async function handleActiveStreams(interaction) {
         const dueUnix = Math.floor(stream.dueDate.getTime() / 1000);
         const status = daysRemaining < 0 ? '🔴 Overdue' : daysRemaining <= 1 ? '🟡 Due Soon' : '🟢 Active';
         
-        // Format to match original BotGhost design with custom emoji
-        return `🪄 **${stream.streamId}** - ${stream.itemName}
+        // Format to match original BotGhost design with cute unicode symbols
+        return `₊˚ପ⊹ **${stream.streamId}** - ${stream.itemName}
 <@${stream.modelId}> | <t:${dueUnix}:D> | ${status}`;
     }).join('\n\n');
 
