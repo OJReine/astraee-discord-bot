@@ -77,7 +77,7 @@ const createStreamCreatedEmbed = (user, guild, streamId, itemName, shop, dueDate
             iconURL: user.displayAvatarURL() 
         })
         .setThumbnail(guild.iconURL())
-        .setTitle('✨ Stream Tracker Log ✨')
+        .setTitle('✦ Stream Tracker Log ✦')
         .setDescription(`A new stream has been registered. Details are below—please follow the workflow until the due date.
 
 **Model:** <@${user.id}>
@@ -85,7 +85,7 @@ const createStreamCreatedEmbed = (user, guild, streamId, itemName, shop, dueDate
 **Due:** <t:${dueUnix}:D> in ${days} days${creator ? `\n**Creator:** <@${creator.id}>` : ''}
 **Stream ID:** ${streamId}`)
         .setColor('#9B59B6')
-        .setFooter({ text: `❖ ${getRandomMotto()} ❖ - Astraee | Created: <t:${nowUnix}:D>` })
+        .setFooter({ text: `❖ ${getRandomMotto()} ❖ - Astraee | Created: ${new Date().toLocaleDateString()}` })
         .setTimestamp();
 };
 
@@ -95,7 +95,7 @@ const createStreamCreatedDMEmbed = (streamId, itemName, dueDate) => {
     const nowUnix = Math.floor(Date.now() / 1000);
     
     return new EmbedBuilder()
-        .setTitle('✨ Greetings, radiant star! ✨')
+        .setTitle('✦ Greetings, radiant star! ✦')
         .setDescription(`Your L&B stream has been created. Retain these details for your records and use them with /completestream when complete:
 
 **Stream ID:** ${streamId}
@@ -106,7 +106,7 @@ const createStreamCreatedDMEmbed = (streamId, itemName, dueDate) => {
 
 Keep this ID safe—your brilliance guides the cosmos!`)
         .setColor('#9B59B6')
-        .setFooter({ text: `❖ The stars shine brightest with your care. ❖ - Astraee | Created: <t:${nowUnix}:D>` })
+        .setFooter({ text: `❖ The stars shine brightest with your care. ❖ - Astraee | Created: ${new Date().toLocaleDateString()}` })
         .setTimestamp();
 };
 
@@ -119,7 +119,7 @@ const createActiveStreamsEmbed = (guild, streamList, totalStreams) => {
             name: guild.name 
         })
         .setThumbnail(guild.iconURL())
-        .setTitle('🌟 Active Streams Constellation 🌟')
+        .setTitle('✦ Active Streams Constellation ✦')
         .setDescription(`Behold the current alignments:
 
 ${streamList}
@@ -135,10 +135,10 @@ const createNoActiveStreamsEmbed = () => {
     const nowUnix = Math.floor(Date.now() / 1000);
     
     return new EmbedBuilder()
-        .setTitle('✨ Active Streams Overview ✨')
+        .setTitle('✦ Active Streams Overview ✦')
         .setDescription('There are currently no active streams in the constellation. Check back when new collaborations align.')
         .setColor('#9B59B6')
-        .setFooter({ text: `❖ Even the stars rest in quiet moments. ❖ - Astraee | At: <t:${nowUnix}:D>` })
+        .setFooter({ text: `❖ Even the stars rest in quiet moments. ❖ - Astraee | At: ${new Date().toLocaleDateString()}` })
         .setTimestamp();
 };
 
@@ -153,7 +153,7 @@ const createStreamCompletionEmbed = (guild, model, itemName, streamId, dueDate) 
             iconURL: model.displayAvatarURL() 
         })
         .setThumbnail(guild.iconURL())
-        .setTitle('✨ Stream Completion Log ✨')
+        .setTitle('✦ Stream Completion Log ✦')
         .setDescription(`A stream has reached its harmonious end. Details below:
 
 **Model:** <@${model.id}>
@@ -162,14 +162,14 @@ const createStreamCompletionEmbed = (guild, model, itemName, streamId, dueDate) 
 
 Well done—your light shines brighter.`)
         .setColor('#27AE60')
-        .setFooter({ text: `❖ Grace in action reflects the harmony within. ❖ - Astraee | Stream ID: ${streamId} | Completed: <t:${nowUnix}:F>` })
+        .setFooter({ text: `❖ Grace in action reflects the harmony within. ❖ - Astraee | Stream ID: ${streamId} | Completed: ${new Date().toLocaleDateString()}` })
         .setTimestamp();
 };
 
 // Create stream not found embed
 const createStreamNotFoundEmbed = () => {
     return new EmbedBuilder()
-        .setTitle('✨ Stream Not Found ✨')
+        .setTitle('✦ Stream Not Found ✦')
         .setDescription('No alignment matches that ID. Verify and try again.')
         .setColor('#E74C3C')
         .setFooter({ text: '❖ Patience is the finest art. ❖ - Astraee' })
@@ -247,6 +247,7 @@ const commands = [
                 { name: '7 Days', value: 7 }
             ))
         .addUserOption(option => option.setName('creator').setDescription('Creator to ping (optional)'))
+        .addRoleOption(option => option.setName('role').setDescription('Role to ping instead of creator (optional)'))
         .addChannelOption(option => option.setName('channel').setDescription('Channel to post stream log (optional)'))
         .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
 
@@ -255,6 +256,7 @@ const commands = [
         .setDescription('View all active streams with days remaining')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
         .addChannelOption(option => option.setName('channel').setDescription('Channel to send the list to (optional)'))
+        .addRoleOption(option => option.setName('role').setDescription('Role to ping (optional)'))
         .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
 
     new SlashCommandBuilder()
@@ -495,6 +497,7 @@ async function handleStreamCreate(interaction) {
     const shop = interaction.options.getString('shop');
     const days = interaction.options.getInteger('days');
     const creator = interaction.options.getUser('creator');
+    const role = interaction.options.getRole('role');
     const targetChannel = interaction.options.getChannel('channel');
     const ephemeral = interaction.options.getBoolean('ephemeral') || false;
 
@@ -528,7 +531,9 @@ async function handleStreamCreate(interaction) {
 
         // Send main response with plain text for tagging before embed
         let responseText = '';
-        if (creator) {
+        if (role) {
+            responseText += `<@&${role.id}> `;
+        } else if (creator) {
             responseText += `<@${creator.id}> `;
         }
         responseText += `<@${interaction.user.id}>`;
@@ -568,6 +573,7 @@ async function handleStreamCreate(interaction) {
 // Active streams handler - updated to match original BotGhost design
 async function handleActiveStreams(interaction) {
     const targetChannel = interaction.options.getChannel('channel');
+    const role = interaction.options.getRole('role');
     const ephemeral = interaction.options.getBoolean('ephemeral') || false;
     
     const activeStreams = await db.select().from(streams)
@@ -587,8 +593,8 @@ async function handleActiveStreams(interaction) {
         const dueUnix = Math.floor(stream.dueDate.getTime() / 1000);
         const status = daysRemaining < 0 ? '🔴 Overdue' : daysRemaining <= 1 ? '🟡 Due Soon' : '🟢 Active';
         
-        // Format to match original BotGhost design
-        return `**${stream.streamId}** - ${stream.itemName}
+        // Format to match original BotGhost design with custom emoji
+        return `<:blackwand:1421414166002139156> **${stream.streamId}** - ${stream.itemName}
 <@${stream.modelId}> | <t:${dueUnix}:D> | ${status}`;
     }).join('\n\n');
 
@@ -597,7 +603,14 @@ async function handleActiveStreams(interaction) {
     // If a specific channel is provided, send there instead
     if (targetChannel) {
         try {
-            await targetChannel.send({ embeds: [embed] });
+            let content = '';
+            if (role) {
+                content = `<@&${role.id}>`;
+            }
+            await targetChannel.send({ 
+                content: content,
+                embeds: [embed] 
+            });
             const confirmEmbed = createAstraeeEmbed(
                 'Streams Delivered',
                 `Active streams list has been sent to ${targetChannel} with elegant precision.`
