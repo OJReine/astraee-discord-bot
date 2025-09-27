@@ -297,7 +297,16 @@ const commands = [
         .setName('cleanupall')
         .setDescription('⚠️ Clean up ALL streams from database (use with caution)')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-        .addBooleanOption(option => option.setName('confirm').setDescription('Confirm you want to delete ALL streams').setRequired(true))
+        .addBooleanOption(option => option.setName('confirm').setDescription('Confirm you want to delete ALL streams').setRequired(true)),
+
+    // Utility Commands
+    new SlashCommandBuilder()
+        .setName('say')
+        .setDescription('Make Astraee speak with elegant precision')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+        .addStringOption(option => option.setName('message').setDescription('Message to send').setRequired(true))
+        .addChannelOption(option => option.setName('channel').setDescription('Channel to send to (defaults to current channel)'))
+        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)'))
 ];
 
 // Register commands with Discord
@@ -370,6 +379,10 @@ client.on('interactionCreate', async interaction => {
         }
         else if (commandName === 'cleanupall') {
             await handleCleanupAll(interaction);
+        }
+        // Utility Commands
+        else if (commandName === 'say') {
+            await handleSay(interaction);
         }
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
@@ -1174,6 +1187,59 @@ async function handleCleanupAll(interaction) {
             '#E74C3C'
         );
         await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Say command handler - Make Astraee speak with elegant precision
+async function handleSay(interaction) {
+    const message = interaction.options.getString('message');
+    const targetChannel = interaction.options.getChannel('channel');
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+
+    try {
+        // If a specific channel is provided, send there
+        if (targetChannel) {
+            await targetChannel.send(message);
+            
+            const confirmEmbed = createAstraeeEmbed(
+                'Message Delivered',
+                `Your message has been delivered to ${targetChannel} with elegant precision.`,
+                '#9B59B6'
+            );
+            
+            await interaction.reply({ 
+                embeds: [confirmEmbed], 
+                flags: ephemeral ? MessageFlags.Ephemeral : 0 
+            });
+        } else {
+            // Send to current channel
+            await interaction.channel.send(message);
+            
+            const confirmEmbed = createAstraeeEmbed(
+                'Message Delivered',
+                'Your message has been delivered with elegant precision.',
+                '#9B59B6'
+            );
+            
+            await interaction.reply({ 
+                embeds: [confirmEmbed], 
+                flags: ephemeral ? MessageFlags.Ephemeral : 0 
+            });
+        }
+
+    } catch (error) {
+        console.error('Error in say command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Delivery Failed',
+            'I could not deliver your message. Please check my permissions in the target channel.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
     }
 }
 
