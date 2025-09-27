@@ -822,8 +822,13 @@ async function handleCompleteStream(interaction) {
         return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
-    // Delete completed stream from database instead of marking as completed
-    await db.delete(streams)
+    // Mark stream as completed instead of deleting immediately
+    await db.update(streams)
+        .set({ 
+            status: 'completed',
+            completedAt: new Date(),
+            updatedAt: new Date()
+        })
         .where(eq(streams.id, stream.id));
 
     // Get model user for embed
@@ -961,12 +966,15 @@ function startReminderSystem() {
         
         try {
             const cutoffDate = new Date();
-            cutoffDate.setDate(cutoffDate.getDate() - 7); // Clean up streams older than 7 days
+            cutoffDate.setDate(cutoffDate.getDate() - 7); // Clean up completed streams older than 7 days
 
             const deletedStreams = await db.delete(streams)
-                .where(lt(streams.createdAt, cutoffDate));
+                .where(and(
+                    eq(streams.status, 'completed'),
+                    lt(streams.completedAt, cutoffDate)
+                ));
 
-            console.log(`✦ Daily cleanup completed - removed old streams ✦`);
+            console.log(`✦ Daily cleanup completed - removed old completed streams ✦`);
         } catch (error) {
             console.error('Error during daily cleanup:', error);
         }
@@ -1075,27 +1083,29 @@ async function handleCleanup(interaction) {
     cutoffDate.setDate(cutoffDate.getDate() - days);
 
     try {
-        // Find old streams (both completed and overdue)
+        // Find old completed streams
         const oldStreams = await db.select().from(streams)
             .where(and(
                 eq(streams.serverId, interaction.guild.id),
-                lt(streams.createdAt, cutoffDate)
+                eq(streams.status, 'completed'),
+                lt(streams.completedAt, cutoffDate)
             ));
 
         if (oldStreams.length === 0) {
             const embed = createAstraeeEmbed(
                 'Database Cleanup',
-                `No streams older than ${days} days found. Database is already clean! ✨`,
+                `No completed streams older than ${days} days found. Database is already clean! ✨`,
                 '#98FB98'
             );
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
-        // Delete old streams (regardless of status)
+        // Delete old completed streams
         await db.delete(streams)
             .where(and(
                 eq(streams.serverId, interaction.guild.id),
-                lt(streams.createdAt, cutoffDate)
+                eq(streams.status, 'completed'),
+                lt(streams.completedAt, cutoffDate)
             ));
 
         const embed = createAstraeeEmbed(

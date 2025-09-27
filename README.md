@@ -11,10 +11,15 @@ Astraee is a sophisticated Discord bot designed specifically for IMVU modeling a
 - `/embed send` - Send stored embeds to channels
 
 ### Stream Tracking
-- `/streamcreate` - Register new IMVU streams with automatic ID generation
-- `/activestreams` - View all active streams (Officer-only command)
+- `/streamcreate` - Register new IMVU streams with admin/model flexibility
+- `/activestreams` - View all active streams with role pinging
 - `/completestream` - Mark streams as completed and archive them
+- `/streaminfo` - Get detailed information about a specific stream
+- `/streamlist` - List streams with optional filters (active/completed/overdue)
+- `/cleanup` - Clean up old completed streams (Officer-only)
+- `/cleanupall` - Emergency cleanup of all streams (Officer-only)
 - Automated reminders 1 day before stream due dates
+- 7-day retention for completed streams before automatic cleanup
 
 ### Astraee's Persona
 - Elegant, refined, and ceremonial communication style
@@ -69,18 +74,24 @@ The bot uses PostgreSQL with three main tables:
 - **Send Template**: `/embed send name:template-name channel:#target-channel`
 
 ### Stream Commands
-- **Register Stream**: `/streamcreate item_name:"Item Name" shop:nina-babes days:7`
-- **View Active Streams**: `/activestreams` (Officers only)
-- **Complete Stream**: `/completestream stream_id:ABC12345`
+- **Register Stream**: `/streamcreate items:"Item Name" days:7 model:@ModelUser role:@StreamOfficers`
+- **View Active Streams**: `/activestreams` (with optional role pinging)
+- **Complete Stream**: `/completestream stream_id:ABC12345 role:@StreamOfficers channel:#stream-tracker`
+- **Stream Info**: `/streaminfo stream_id:ABC12345`
+- **List Streams**: `/streamlist status:active model:@ModelUser channel:#target-channel`
+- **Cleanup**: `/cleanup days:7` (Officers only)
+- **Emergency Cleanup**: `/cleanupall confirm:true` (Officers only)
 
 ### Stream Workflow
-1. Model uses `/streamcreate` to register stream
-2. Astraee generates unique Stream ID and logs details
-3. Bot sends DM confirmation to model
-4. Bot tags creator/officer if specified
-5. Automated reminder 1 day before due date
-6. Model uses `/completestream` when finished
-7. Stream archived in completed-streams channel
+1. **Admin or Model** uses `/streamcreate` to register stream
+2. **Astraee generates** unique Stream ID and logs details
+3. **DM sent to model** (not command user) with stream details
+4. **Role pinged** in plain text for notifications (if specified)
+5. **Creator pinged** in embed (if specified)
+6. **Automated reminder** 1 day before due date
+7. **Model uses** `/completestream` when finished
+8. **Stream archived** and kept for 7 days before automatic cleanup
+9. **Officers can use** `/cleanup` to manually clean old streams
 
 ## ✦ Customization for Your Server ✦
 
@@ -94,12 +105,19 @@ For officer-only commands like `/activestreams`:
 - Assign "Manage Messages" permission to officer roles
 - Or use Discord's slash command permissions in Server Settings
 
-### Shop Configuration
-Current shops supported:
-- `nina-babes` (Nina Babes)
-- `wildethorn-ladies` (Wildethorn Ladies)
+### Admin/Model Flexibility
+The bot supports flexible stream creation:
+- **Models can create** their own streams (default behavior)
+- **Admins can create** streams for models using the `model` parameter
+- **DMs are sent** to the model, not the command user
+- **Role pinging** for Stream Officers in plain text
+- **Creator pinging** in embed for recognition
 
-To add new shops, modify the choices in the `/streamcreate` command.
+### Database Management
+- **Automatic cleanup** of completed streams after 7 days
+- **Manual cleanup** commands for officers
+- **Duplicate prevention** with interaction tracking
+- **Efficient storage** to stay within free tier limits
 
 ## ✦ Deployment ✦
 
