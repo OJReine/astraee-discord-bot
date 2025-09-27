@@ -511,6 +511,9 @@ async function handleEmbedCommand(interaction) {
     }
 }
 
+// Command execution tracking to prevent duplicates
+const commandExecutions = new Map();
+
 // Stream create handler - updated to match original BotGhost design
 async function handleStreamCreate(interaction) {
     const itemName = interaction.options.getString('items');
@@ -521,6 +524,35 @@ async function handleStreamCreate(interaction) {
     const targetChannel = interaction.options.getChannel('channel');
     const ephemeral = interaction.options.getBoolean('ephemeral') || false;
 
+    // Create a unique key for this command execution
+    const commandKey = `${interaction.user.id}-${interaction.guild.id}-${itemName}-${Date.now()}`;
+    
+    // Check if this exact command is already being processed
+    if (commandExecutions.has(commandKey)) {
+        const embed = createAstraeeEmbed(
+            'Command Already Processing',
+            'This command is already being processed. Please wait a moment.',
+            '#F0E68C'
+        );
+        return interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+
+    // Mark this command as being processed
+    commandExecutions.set(commandKey, true);
+    
+    // Clean up old command keys (older than 30 seconds)
+    const now = Date.now();
+    for (const [key, timestamp] of commandExecutions.entries()) {
+        if (now - timestamp > 30000) {
+            commandExecutions.delete(key);
+        }
+    }
+
+    // Generate unique stream ID first
+    const streamId = generateStreamId();
+    const dueDate = new Date();
+    dueDate.setDate(dueDate.getDate() + days);
+
     // Check for duplicate stream creation within last 30 seconds
     const recentStreams = await db.select().from(streams)
         .where(and(
@@ -528,7 +560,8 @@ async function handleStreamCreate(interaction) {
             eq(streams.itemName, itemName),
             eq(streams.serverId, interaction.guild.id),
             eq(streams.status, 'active')
-        ));
+        ))
+        .orderBy(desc(streams.createdAt));
 
     // If there's a recent stream with same details, don't create another
     if (recentStreams.length > 0) {
@@ -538,7 +571,7 @@ async function handleStreamCreate(interaction) {
         if (timeDiff < 30000) { // 30 seconds
             const embed = createAstraeeEmbed(
                 'Duplicate Prevention',
-                `A stream with the same details was created recently. Please wait before creating another.\n\n**Recent Stream ID:** ${recentStream.streamId}`,
+                `A stream with the same details was created recently. Please wait before creating another.\n\n**Recent Stream ID:** ${recentStream.streamId}\n**Time since creation:** ${Math.round(timeDiff / 1000)} seconds`,
                 '#F0E68C'
             );
             return interaction.reply({ embeds: [embed], ephemeral: true });
@@ -569,11 +602,8 @@ async function handleStreamCreate(interaction) {
         }
     }
 
-    const streamId = generateStreamId();
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + days);
-
     try {
+        // Insert stream with unique constraint protection
         await db.insert(streams).values({
             streamId,
             modelId: interaction.user.id,
@@ -584,6 +614,8 @@ async function handleStreamCreate(interaction) {
             shop,
             serverId: interaction.guild.id
         });
+
+        console.log(`Stream created successfully: ${streamId} for user ${interaction.user.username}`);
 
         // Create embed using original BotGhost design
         const embed = createStreamCreatedEmbed(
@@ -647,7 +679,27 @@ async function handleStreamCreate(interaction) {
 
     } catch (error) {
         console.error('Error creating stream:', error);
-        throw error;
+        
+        // Handle duplicate key violations
+        if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
+            const embed = createAstraeeEmbed(
+                'Duplicate Stream Detected',
+                `A stream with this ID already exists. This might be due to a network issue.\n\n**Stream ID:** ${streamId}\n\nPlease try again in a moment.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+        
+        // Handle other database errors
+        const embed = createAstraeeEmbed(
+            'Stream Creation Failed',
+            'An error occurred while creating the stream. Please try again later.',
+            '#E74C3C'
+        );
+        return interaction.reply({ embeds: [embed], ephemeral: true });
+    } finally {
+        // Clean up command execution tracking
+        commandExecutions.delete(commandKey);
     }
 }
 
