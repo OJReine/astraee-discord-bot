@@ -240,7 +240,7 @@ const commands = [
         .setName('streamcreate')
         .setDescription('Register a new IMVU stream with ceremonial precision')
         .addStringOption(option => option.setName('items').setDescription('Name of the IMVU items').setRequired(true))
-        .addStringOption(option => option.setName('shop').setDescription('Shop name').setRequired(true))
+        .addUserOption(option => option.setName('model').setDescription('Model who will be streaming (defaults to you)'))
         .addIntegerOption(option => option.setName('days').setDescription('Days until due').setRequired(true)
             .addChoices(
                 { name: '1 Day', value: 1 },
@@ -249,7 +249,7 @@ const commands = [
                 { name: '7 Days', value: 7 }
             ))
         .addUserOption(option => option.setName('creator').setDescription('Creator to ping (optional)'))
-        .addRoleOption(option => option.setName('role').setDescription('Role to ping instead of creator (optional)'))
+        .addRoleOption(option => option.setName('role').setDescription('Role to ping for notifications (e.g., @Stream Officers)'))
         .addChannelOption(option => option.setName('channel').setDescription('Channel to post stream log (optional)'))
         .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
 
@@ -543,10 +543,10 @@ async function handleEmbedCommand(interaction) {
 const commandExecutions = new Map();
 const interactionTracking = new Map();
 
-// Stream create handler - updated to match original BotGhost design
+// Stream create handler - updated for admin/model concept
 async function handleStreamCreate(interaction) {
     const itemName = interaction.options.getString('items');
-    const shop = interaction.options.getString('shop');
+    const model = interaction.options.getUser('model') || interaction.user; // Default to command user if no model specified
     const days = interaction.options.getInteger('days');
     const creator = interaction.options.getUser('creator');
     const role = interaction.options.getRole('role');
@@ -585,7 +585,7 @@ async function handleStreamCreate(interaction) {
     // Check for duplicate stream creation within last 30 seconds
     const recentStreams = await db.select().from(streams)
         .where(and(
-            eq(streams.modelId, interaction.user.id),
+            eq(streams.modelId, model.id),
             eq(streams.itemName, itemName),
             eq(streams.serverId, interaction.guild.id),
             eq(streams.status, 'active')
@@ -610,7 +610,7 @@ async function handleStreamCreate(interaction) {
     // Additional check: prevent rapid-fire duplicate commands
     const userRecentStreams = await db.select().from(streams)
         .where(and(
-            eq(streams.modelId, interaction.user.id),
+            eq(streams.modelId, model.id),
             eq(streams.serverId, interaction.guild.id),
             eq(streams.status, 'active')
         ))
@@ -635,24 +635,24 @@ async function handleStreamCreate(interaction) {
         // Insert stream with unique constraint protection
         await db.insert(streams).values({
             streamId,
-            modelId: interaction.user.id,
+            modelId: model.id, // Use the model, not the command user
             creatorId: creator?.id,
             itemName,
             itemLink: null, // Removed item link option
             dueDate,
-            shop,
+            shop: 'Nina Babes', // Default shop since it's not displayed
             serverId: interaction.guild.id
         });
 
-        console.log(`Stream created successfully: ${streamId} for user ${interaction.user.username}`);
+        console.log(`Stream created successfully: ${streamId} for model ${model.username} by ${interaction.user.username}`);
 
         // Create embed using original BotGhost design
         const embed = createStreamCreatedEmbed(
-            interaction.user, 
+            model, // Use the model, not the command user
             interaction.guild, 
             streamId, 
             itemName, 
-            shop, 
+            'Nina Babes', // Default shop
             dueDate, 
             days, 
             creator
@@ -662,10 +662,8 @@ async function handleStreamCreate(interaction) {
         let responseText = '';
         if (role) {
             responseText += `<@&${role.id}> `;
-        } else if (creator) {
-            responseText += `<@${creator.id}> `;
         }
-        responseText += `<@${interaction.user.id}>`;
+        // Don't ping creators in plain text since they're already in the embed
 
         // If a specific channel is provided, send there instead of replying
         if (targetChannel) {
@@ -697,7 +695,14 @@ async function handleStreamCreate(interaction) {
             });
         }
 
-        // DM functionality removed to prevent duplicate issues
+        // Send DM to the model (not the command user)
+        try {
+            const dmEmbed = createStreamCreatedDMEmbed(streamId, itemName, dueDate);
+            await model.send({ embeds: [dmEmbed] });
+            console.log(`DM sent to model ${model.username} for stream ${streamId}`);
+        } catch (error) {
+            console.log('Could not send DM to model:', error.message);
+        }
 
     } catch (error) {
         console.error('Error creating stream:', error);
