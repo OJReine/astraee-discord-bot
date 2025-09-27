@@ -349,7 +349,60 @@ const commands = [
         .addSubcommand(subcommand => subcommand.setName('list').setDescription('List all reaction roles for a message')
             .addStringOption(option => option.setName('message_id').setDescription('Message ID to list reaction roles for').setRequired(true)))
         .addSubcommand(subcommand => subcommand.setName('clear').setDescription('Clear all reaction roles from a message')
-            .addStringOption(option => option.setName('message_id').setDescription('Message ID to clear reaction roles from').setRequired(true)))
+            .addStringOption(option => option.setName('message_id').setDescription('Message ID to clear reaction roles from').setRequired(true))),
+
+    // Moderation Commands
+    new SlashCommandBuilder()
+        .setName('kick')
+        .setDescription('Kick a user from the server with elegant precision')
+        .setDefaultMemberPermissions(PermissionFlagsBits.KickMembers)
+        .addUserOption(option => option.setName('user').setDescription('User to kick').setRequired(true))
+        .addStringOption(option => option.setName('reason').setDescription('Reason for kick'))
+        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
+
+    new SlashCommandBuilder()
+        .setName('ban')
+        .setDescription('Ban a user from the server with elegant precision')
+        .setDefaultMemberPermissions(PermissionFlagsBits.BanMembers)
+        .addUserOption(option => option.setName('user').setDescription('User to ban').setRequired(true))
+        .addStringOption(option => option.setName('reason').setDescription('Reason for ban'))
+        .addIntegerOption(option => option.setName('delete_days').setDescription('Days of messages to delete (0-7)').setMinValue(0).setMaxValue(7))
+        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
+
+    new SlashCommandBuilder()
+        .setName('timeout')
+        .setDescription('Timeout a user with elegant precision')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .addUserOption(option => option.setName('user').setDescription('User to timeout').setRequired(true))
+        .addIntegerOption(option => option.setName('duration').setDescription('Timeout duration in minutes').setRequired(true).setMinValue(1).setMaxValue(40320)) // Max 28 days
+        .addStringOption(option => option.setName('reason').setDescription('Reason for timeout'))
+        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
+
+    new SlashCommandBuilder()
+        .setName('mute')
+        .setDescription('Mute a user by assigning a mute role')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+        .addUserOption(option => option.setName('user').setDescription('User to mute').setRequired(true))
+        .addRoleOption(option => option.setName('mute_role').setDescription('Mute role to assign').setRequired(true))
+        .addStringOption(option => option.setName('reason').setDescription('Reason for mute'))
+        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
+
+    new SlashCommandBuilder()
+        .setName('unmute')
+        .setDescription('Unmute a user by removing mute role')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+        .addUserOption(option => option.setName('user').setDescription('User to unmute').setRequired(true))
+        .addRoleOption(option => option.setName('mute_role').setDescription('Mute role to remove'))
+        .addStringOption(option => option.setName('reason').setDescription('Reason for unmute'))
+        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
+
+    new SlashCommandBuilder()
+        .setName('modlogs')
+        .setDescription('View moderation logs for a user')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
+        .addUserOption(option => option.setName('user').setDescription('User to view logs for').setRequired(true))
+        .addIntegerOption(option => option.setName('limit').setDescription('Number of logs to show (1-25)').setMinValue(1).setMaxValue(25))
+        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)'))
 ];
 
 // Register commands with Discord
@@ -676,6 +729,25 @@ client.on('interactionCreate', async interaction => {
         // Reaction Role Management
         else if (commandName === 'reactionrole') {
             await handleReactionRole(interaction);
+        }
+        // Moderation Commands
+        else if (commandName === 'kick') {
+            await handleKick(interaction);
+        }
+        else if (commandName === 'ban') {
+            await handleBan(interaction);
+        }
+        else if (commandName === 'timeout') {
+            await handleTimeout(interaction);
+        }
+        else if (commandName === 'mute') {
+            await handleMute(interaction);
+        }
+        else if (commandName === 'unmute') {
+            await handleUnmute(interaction);
+        }
+        else if (commandName === 'modlogs') {
+            await handleModLogs(interaction);
         }
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
@@ -2176,6 +2248,327 @@ async function handleReactionRoleClear(interaction) {
         }
         
         throw error;
+    }
+}
+
+// Moderation command handlers
+async function handleKick(interaction) {
+    const user = interaction.options.getUser('user');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+
+    try {
+        const member = await interaction.guild.members.fetch(user.id);
+        
+        // Check if user can be kicked
+        if (!member.kickable) {
+            const embed = createAstraeeEmbed(
+                'Cannot Kick User',
+                `I cannot kick ${user}. They may have a higher role than me or be the server owner.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Kick the user
+        await member.kick(reason);
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: user.id,
+            moderatorId: interaction.user.id,
+            action: 'kick',
+            reason: reason
+        });
+
+        const embed = createAstraeeEmbed(
+            'User Kicked',
+            `**User:** ${user} (${user.tag})\n**Reason:** ${reason}\n**Moderator:** ${interaction.user}\n\nUser has been removed from the server with elegant precision.`,
+            '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+
+    } catch (error) {
+        console.error('Error kicking user:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Kick Failed',
+            `Failed to kick ${user}. Please check my permissions and try again.`,
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+async function handleBan(interaction) {
+    const user = interaction.options.getUser('user');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const deleteDays = interaction.options.getInteger('delete_days') || 0;
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+
+    try {
+        const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+        
+        // Check if user can be banned
+        if (member && !member.bannable) {
+            const embed = createAstraeeEmbed(
+                'Cannot Ban User',
+                `I cannot ban ${user}. They may have a higher role than me or be the server owner.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Ban the user
+        await interaction.guild.members.ban(user, { 
+            reason: reason,
+            deleteMessageDays: deleteDays
+        });
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: user.id,
+            moderatorId: interaction.user.id,
+            action: 'ban',
+            reason: reason
+        });
+
+        const embed = createAstraeeEmbed(
+            'User Banned',
+            `**User:** ${user} (${user.tag})\n**Reason:** ${reason}\n**Moderator:** ${interaction.user}\n**Messages Deleted:** ${deleteDays} days\n\nUser has been permanently banned from the server with elegant precision.`,
+            '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+
+    } catch (error) {
+        console.error('Error banning user:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Ban Failed',
+            `Failed to ban ${user}. Please check my permissions and try again.`,
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+async function handleTimeout(interaction) {
+    const user = interaction.options.getUser('user');
+    const duration = interaction.options.getInteger('duration');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+
+    try {
+        const member = await interaction.guild.members.fetch(user.id);
+        
+        // Check if user can be timed out
+        if (!member.moderatable) {
+            const embed = createAstraeeEmbed(
+                'Cannot Timeout User',
+                `I cannot timeout ${user}. They may have a higher role than me or be the server owner.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Calculate timeout end time
+        const timeoutUntil = new Date(Date.now() + duration * 60 * 1000);
+
+        // Timeout the user
+        await member.timeout(duration * 60 * 1000, reason);
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: user.id,
+            moderatorId: interaction.user.id,
+            action: 'timeout',
+            reason: reason,
+            duration: duration
+        });
+
+        const embed = createAstraeeEmbed(
+            'User Timed Out',
+            `**User:** ${user} (${user.tag})\n**Duration:** ${duration} minutes\n**Reason:** ${reason}\n**Moderator:** ${interaction.user}\n**Until:** <t:${Math.floor(timeoutUntil.getTime() / 1000)}:R>\n\nUser has been timed out with elegant precision.`,
+            '#F39C12'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+
+    } catch (error) {
+        console.error('Error timing out user:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Timeout Failed',
+            `Failed to timeout ${user}. Please check my permissions and try again.`,
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+async function handleMute(interaction) {
+    const user = interaction.options.getUser('user');
+    const muteRole = interaction.options.getRole('mute_role');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+
+    try {
+        const member = await interaction.guild.members.fetch(user.id);
+        
+        // Check if user already has the mute role
+        if (member.roles.cache.has(muteRole.id)) {
+            const embed = createAstraeeEmbed(
+                'User Already Muted',
+                `${user} already has the ${muteRole} role.`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Add the mute role
+        await member.roles.add(muteRole, reason);
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: user.id,
+            moderatorId: interaction.user.id,
+            action: 'mute',
+            reason: reason
+        });
+
+        const embed = createAstraeeEmbed(
+            'User Muted',
+            `**User:** ${user} (${user.tag})\n**Mute Role:** ${muteRole}\n**Reason:** ${reason}\n**Moderator:** ${interaction.user}\n\nUser has been muted with elegant precision.`,
+            '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+
+    } catch (error) {
+        console.error('Error muting user:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Mute Failed',
+            `Failed to mute ${user}. Please check my permissions and try again.`,
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+async function handleUnmute(interaction) {
+    const user = interaction.options.getUser('user');
+    const muteRole = interaction.options.getRole('mute_role');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+
+    try {
+        const member = await interaction.guild.members.fetch(user.id);
+        
+        // Check if user has the mute role
+        if (!member.roles.cache.has(muteRole.id)) {
+            const embed = createAstraeeEmbed(
+                'User Not Muted',
+                `${user} does not have the ${muteRole} role.`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Remove the mute role
+        await member.roles.remove(muteRole, reason);
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: user.id,
+            moderatorId: interaction.user.id,
+            action: 'unmute',
+            reason: reason
+        });
+
+        const embed = createAstraeeEmbed(
+            'User Unmuted',
+            `**User:** ${user} (${user.tag})\n**Mute Role:** ${muteRole}\n**Reason:** ${reason}\n**Moderator:** ${interaction.user}\n\nUser has been unmuted with elegant precision.`,
+            '#98FB98'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+
+    } catch (error) {
+        console.error('Error unmuting user:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Unmute Failed',
+            `Failed to unmute ${user}. Please check my permissions and try again.`,
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+async function handleModLogs(interaction) {
+    const user = interaction.options.getUser('user');
+    const limit = interaction.options.getInteger('limit') || 10;
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+
+    try {
+        // Get moderation logs for the user
+        const logs = await db.select().from(moderationLogs)
+            .where(and(
+                eq(moderationLogs.serverId, interaction.guild.id),
+                eq(moderationLogs.userId, user.id)
+            ))
+            .orderBy(desc(moderationLogs.createdAt))
+            .limit(limit);
+
+        if (logs.length === 0) {
+            const embed = createAstraeeEmbed(
+                'No Moderation Logs',
+                `No moderation logs found for ${user}.`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const logEntries = logs.map(log => {
+            const moderator = interaction.guild.members.cache.get(log.moderatorId);
+            const moderatorName = moderator ? moderator.user.tag : 'Unknown';
+            const timestamp = `<t:${Math.floor(log.createdAt.getTime() / 1000)}:R>`;
+            const duration = log.duration ? ` (${log.duration} min)` : '';
+            
+            return `**${log.action.toUpperCase()}**${duration} - ${timestamp}\n**Moderator:** ${moderatorName}\n**Reason:** ${log.reason || 'No reason provided'}`;
+        }).join('\n\n');
+
+        const embed = createAstraeeEmbed(
+            `Moderation Logs for ${user.tag}`,
+            `**User:** ${user} (${user.id})\n**Total Logs:** ${logs.length}\n\n${logEntries}`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+
+    } catch (error) {
+        console.error('Error fetching mod logs:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Logs Failed',
+            `Failed to fetch moderation logs for ${user}. Please try again later.`,
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 }
 
