@@ -263,7 +263,9 @@ const commands = [
         .setName('completestream')
         .setDescription('Mark a stream as complete and archive it')
         .addStringOption(option => option.setName('stream_id').setDescription('Stream ID to complete').setRequired(true))
-        .addChannelOption(option => option.setName('channel').setDescription('Channel to post completion log (optional)')),
+        .addChannelOption(option => option.setName('channel').setDescription('Channel to post completion log (optional)'))
+        .addRoleOption(option => option.setName('role').setDescription('Role to ping for completion notification (e.g., @Stream Officers)'))
+        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
 
     // Additional utility commands
     new SlashCommandBuilder()
@@ -538,22 +540,34 @@ async function handleStreamCreate(interaction) {
         }
         responseText += `<@${interaction.user.id}>`;
 
-        await interaction.reply({ 
-            content: responseText,
-            embeds: [embed],
-            ephemeral: ephemeral
-        });
-
-        // If a specific channel is provided, also post there
+        // If a specific channel is provided, send there instead of replying
         if (targetChannel) {
             try {
                 await targetChannel.send({ 
                     content: responseText,
                     embeds: [embed] 
                 });
+                const confirmEmbed = createAstraeeEmbed(
+                    'Stream Created',
+                    `Stream has been created and sent to ${targetChannel} with elegant precision.`
+                );
+                await interaction.reply({ embeds: [confirmEmbed], ephemeral: true });
             } catch (error) {
                 console.log('Could not send to target channel:', error.message);
+                // Fallback to regular reply if channel send fails
+                await interaction.reply({ 
+                    content: responseText,
+                    embeds: [embed],
+                    ephemeral: ephemeral
+                });
             }
+        } else {
+            // Send regular reply if no target channel
+            await interaction.reply({ 
+                content: responseText,
+                embeds: [embed],
+                ephemeral: ephemeral
+            });
         }
 
         // Send DM confirmation using original design
@@ -633,6 +647,9 @@ async function handleActiveStreams(interaction) {
 // Complete stream handler - updated to match original BotGhost design
 async function handleCompleteStream(interaction) {
     const streamId = interaction.options.getString('stream_id').toUpperCase();
+    const targetChannel = interaction.options.getChannel('channel');
+    const role = interaction.options.getRole('role');
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
 
     const [stream] = await db.select().from(streams)
         .where(and(
@@ -680,34 +697,41 @@ async function handleCompleteStream(interaction) {
         stream.dueDate
     );
 
-    // Post to stream-tracker channel with officer tag
-    const streamTrackerChannel = interaction.guild.channels.cache.find(
-        channel => channel.name === 'stream-tracker' || channel.name === '『stream-tracker』'
-    );
-
-    if (streamTrackerChannel) {
-        // Find officer role or use a default tag pattern
-        const officerRole = interaction.guild.roles.cache.find(
-            role => role.name.toLowerCase().includes('officer') || 
-                   role.name.toLowerCase().includes('staff') ||
-                   role.permissions.has(PermissionFlagsBits.ManageMessages)
-        );
-
-        const tagText = officerRole ? `<@&${officerRole.id}>` : '';
-        
-        await streamTrackerChannel.send({ 
-            content: tagText,
-            embeds: [completionEmbed] 
-        });
+    // Send completion notification
+    let responseText = '';
+    if (role) {
+        responseText = `<@&${role.id}>`;
     }
 
-    // Reply to user with confirmation
-    const confirmEmbed = createAstraeeEmbed(
-        'Completion Recorded',
-        `Stream **${streamId}** has been marked complete and archived in the cosmic registry.\n\nYour dedication shines eternal in our constellation.`
-    );
-
-    await interaction.reply({ embeds: [confirmEmbed], ephemeral: true });
+    // If a specific channel is provided, send there
+    if (targetChannel) {
+        try {
+            await targetChannel.send({ 
+                content: responseText,
+                embeds: [completionEmbed] 
+            });
+            const confirmEmbed = createAstraeeEmbed(
+                'Completion Recorded',
+                `Stream **${streamId}** has been marked complete and sent to ${targetChannel}.\n\nYour dedication shines eternal in our constellation.`
+            );
+            await interaction.reply({ embeds: [confirmEmbed], ephemeral: ephemeral });
+        } catch (error) {
+            console.log('Could not send to target channel:', error.message);
+            const errorEmbed = createAstraeeEmbed(
+                'Delivery Failed',
+                `Could not send to ${targetChannel}. Please check permissions.`,
+                '#E74C3C'
+            );
+            await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        }
+    } else {
+        // Send regular reply if no target channel
+        await interaction.reply({ 
+            content: responseText,
+            embeds: [completionEmbed],
+            ephemeral: ephemeral
+        });
+    }
 }
 
 // Reminder system - updated to match original BotGhost design
