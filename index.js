@@ -13,7 +13,7 @@ app.get('/', (req, res) => {
   res.send('✦ Astraee is alive and serving with elegance ✦');
 });
 
-app.listen(port, () => {
+app.listen(port, '0.0.0.0', () => {
   console.log(`Web server running on port ${port}`);
 });
 
@@ -608,7 +608,7 @@ async function handleActiveStreams(interaction) {
         const status = daysRemaining < 0 ? '🔴 Overdue' : daysRemaining <= 1 ? '🟡 Due Soon' : '🟢 Active';
         
         // Format to match original BotGhost design with custom emoji
-        return `<:blackwand:1421414166002139156> **${stream.streamId}** - ${stream.itemName}
+        return `🪄 **${stream.streamId}** - ${stream.itemName}
 <@${stream.modelId}> | <t:${dueUnix}:D> | ${status}`;
     }).join('\n\n');
 
