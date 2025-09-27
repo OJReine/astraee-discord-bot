@@ -321,7 +321,24 @@ const commands = [
         .addSubcommand(subcommand => subcommand.setName('toggle').setDescription('Enable/disable welcome system')
             .addBooleanOption(option => option.setName('enabled').setDescription('Enable welcome system').setRequired(true)))
         .addSubcommand(subcommand => subcommand.setName('test').setDescription('Test welcome message'))
-        .addSubcommand(subcommand => subcommand.setName('status').setDescription('View current welcome system settings'))
+        .addSubcommand(subcommand => subcommand.setName('status').setDescription('View current welcome system settings')),
+
+    // Reaction Role Management
+    new SlashCommandBuilder()
+        .setName('reactionrole')
+        .setDescription('Manage reaction roles with elegant precision')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+        .addSubcommand(subcommand => subcommand.setName('add').setDescription('Add reaction role to a message')
+            .addStringOption(option => option.setName('message_id').setDescription('Message ID to add reaction role to').setRequired(true))
+            .addStringOption(option => option.setName('emoji').setDescription('Emoji to use for reaction').setRequired(true))
+            .addRoleOption(option => option.setName('role').setDescription('Role to assign/remove').setRequired(true)))
+        .addSubcommand(subcommand => subcommand.setName('remove').setDescription('Remove reaction role from a message')
+            .addStringOption(option => option.setName('message_id').setDescription('Message ID to remove reaction role from').setRequired(true))
+            .addStringOption(option => option.setName('emoji').setDescription('Emoji to remove').setRequired(true)))
+        .addSubcommand(subcommand => subcommand.setName('list').setDescription('List all reaction roles for a message')
+            .addStringOption(option => option.setName('message_id').setDescription('Message ID to list reaction roles for').setRequired(true)))
+        .addSubcommand(subcommand => subcommand.setName('clear').setDescription('Clear all reaction roles from a message')
+            .addStringOption(option => option.setName('message_id').setDescription('Message ID to clear reaction roles from').setRequired(true)))
 ];
 
 // Register commands with Discord
@@ -399,6 +416,97 @@ client.on('guildMemberRemove', async member => {
     }
 });
 
+// Handle reaction events for reaction roles
+client.on('messageReactionAdd', async (reaction, user) => {
+    try {
+        // Ignore bot reactions
+        if (user.bot) return;
+
+        // Handle partial reactions
+        if (reaction.partial) {
+            try {
+                await reaction.fetch();
+            } catch (error) {
+                console.error('Error fetching reaction:', error);
+                return;
+            }
+        }
+
+        // Get reaction role from database
+        const reactionRole = await db.select().from(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, reaction.message.guild.id),
+                eq(reactionRoles.messageId, reaction.message.id),
+                eq(reactionRoles.emoji, reaction.emoji.name || reaction.emoji.toString())
+            ))
+            .limit(1);
+
+        if (reactionRole.length === 0) return; // No reaction role found
+
+        // Get the role and member
+        const role = reaction.message.guild.roles.cache.get(reactionRole[0].roleId);
+        const member = reaction.message.guild.members.cache.get(user.id);
+
+        if (!role || !member) return;
+
+        // Add the role to the member
+        try {
+            await member.roles.add(role);
+            console.log(`✦ Role ${role.name} added to ${user.username} via reaction ✦`);
+        } catch (error) {
+            console.error('Error adding role:', error);
+        }
+
+    } catch (error) {
+        console.error('Error handling reaction add:', error);
+    }
+});
+
+client.on('messageReactionRemove', async (reaction, user) => {
+    try {
+        // Ignore bot reactions
+        if (user.bot) return;
+
+        // Handle partial reactions
+        if (reaction.partial) {
+            try {
+                await reaction.fetch();
+            } catch (error) {
+                console.error('Error fetching reaction:', error);
+                return;
+            }
+        }
+
+        // Get reaction role from database
+        const reactionRole = await db.select().from(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, reaction.message.guild.id),
+                eq(reactionRoles.messageId, reaction.message.id),
+                eq(reactionRoles.emoji, reaction.emoji.name || reaction.emoji.toString())
+            ))
+            .limit(1);
+
+        if (reactionRole.length === 0) return; // No reaction role found
+
+        // Get the role and member
+        const role = reaction.message.guild.roles.cache.get(reactionRole[0].roleId);
+        const member = reaction.message.guild.members.cache.get(user.id);
+
+        if (!role || !member) return;
+
+        // Remove the role from the member
+        try {
+            await member.roles.remove(role);
+            console.log(`✦ Role ${role.name} removed from ${user.username} via reaction ✦`);
+        } catch (error) {
+            console.error('Error removing role:', error);
+        }
+
+    } catch (error) {
+        console.error('Error handling reaction remove:', error);
+    }
+});
+
 // Handle slash commands
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
@@ -459,6 +567,10 @@ client.on('interactionCreate', async interaction => {
         // Community Management Commands
         else if (commandName === 'welcomer') {
             await handleWelcomer(interaction);
+        }
+        // Reaction Role Management
+        else if (commandName === 'reactionrole') {
+            await handleReactionRole(interaction);
         }
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
@@ -1523,6 +1635,314 @@ async function handleWelcomerStatus(interaction) {
 
     } catch (error) {
         console.error('Error getting welcomer status:', error);
+        throw error;
+    }
+}
+
+// Reaction Role command handler - Manage reaction roles with elegant precision
+async function handleReactionRole(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'add':
+                await handleReactionRoleAdd(interaction);
+                break;
+            case 'remove':
+                await handleReactionRoleRemove(interaction);
+                break;
+            case 'list':
+                await handleReactionRoleList(interaction);
+                break;
+            case 'clear':
+                await handleReactionRoleClear(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in reaction role command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Reaction Role Error',
+            'An error occurred while managing reaction roles. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Reaction Role Add handler
+async function handleReactionRoleAdd(interaction) {
+    const messageId = interaction.options.getString('message_id');
+    const emoji = interaction.options.getString('emoji');
+    const role = interaction.options.getRole('role');
+
+    try {
+        // Find the message
+        const message = await interaction.channel.messages.fetch(messageId);
+        if (!message) {
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct and the message is in this channel.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Check if reaction role already exists
+        const existingReactionRole = await db.select().from(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, interaction.guild.id),
+                eq(reactionRoles.messageId, messageId),
+                eq(reactionRoles.emoji, emoji)
+            ))
+            .limit(1);
+
+        if (existingReactionRole.length > 0) {
+            const embed = createAstraeeEmbed(
+                'Reaction Role Exists',
+                `A reaction role with emoji ${emoji} already exists for this message. Use \`/reactionrole remove\` to remove it first.`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Add reaction role to database
+        await db.insert(reactionRoles).values({
+            serverId: interaction.guild.id,
+            messageId: messageId,
+            emoji: emoji,
+            roleId: role.id
+        });
+
+        // Add reaction to the message
+        await message.react(emoji);
+
+        const embed = createAstraeeEmbed(
+            'Reaction Role Added',
+            `Reaction role added with elegant precision.\n\n**Message:** ${messageId}\n**Emoji:** ${emoji}\n**Role:** ${role}\n\nUsers can now react to assign/remove this role.`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error adding reaction role:', error);
+        
+        if (error.code === 10008) { // Unknown Message
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+        
+        throw error;
+    }
+}
+
+// Reaction Role Remove handler
+async function handleReactionRoleRemove(interaction) {
+    const messageId = interaction.options.getString('message_id');
+    const emoji = interaction.options.getString('emoji');
+
+    try {
+        // Find the message
+        const message = await interaction.channel.messages.fetch(messageId);
+        if (!message) {
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct and the message is in this channel.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Find and remove reaction role from database
+        const reactionRole = await db.select().from(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, interaction.guild.id),
+                eq(reactionRoles.messageId, messageId),
+                eq(reactionRoles.emoji, emoji)
+            ))
+            .limit(1);
+
+        if (reactionRole.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Reaction Role Not Found',
+                `No reaction role found with emoji ${emoji} for this message.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Remove from database
+        await db.delete(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, interaction.guild.id),
+                eq(reactionRoles.messageId, messageId),
+                eq(reactionRoles.emoji, emoji)
+            ));
+
+        // Remove reaction from message
+        try {
+            await message.reactions.cache.get(emoji)?.users.remove(client.user);
+        } catch (reactionError) {
+            console.log('Could not remove reaction from message:', reactionError.message);
+        }
+
+        const embed = createAstraeeEmbed(
+            'Reaction Role Removed',
+            `Reaction role removed with elegant precision.\n\n**Message:** ${messageId}\n**Emoji:** ${emoji}\n**Role:** <@&${reactionRole[0].roleId}>`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error removing reaction role:', error);
+        
+        if (error.code === 10008) { // Unknown Message
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+        
+        throw error;
+    }
+}
+
+// Reaction Role List handler
+async function handleReactionRoleList(interaction) {
+    const messageId = interaction.options.getString('message_id');
+
+    try {
+        // Find the message
+        const message = await interaction.channel.messages.fetch(messageId);
+        if (!message) {
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct and the message is in this channel.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Get all reaction roles for this message
+        const reactionRolesList = await db.select().from(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, interaction.guild.id),
+                eq(reactionRoles.messageId, messageId)
+            ));
+
+        if (reactionRolesList.length === 0) {
+            const embed = createAstraeeEmbed(
+                'No Reaction Roles',
+                `No reaction roles found for this message. Use \`/reactionrole add\` to add some.`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const embed = createAstraeeEmbed(
+            'Reaction Roles List',
+            `**Message ID:** ${messageId}\n\n**Reaction Roles:**\n${reactionRolesList.map(rr => `• ${rr.emoji} → <@&${rr.roleId}>`).join('\n')}`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error listing reaction roles:', error);
+        
+        if (error.code === 10008) { // Unknown Message
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+        
+        throw error;
+    }
+}
+
+// Reaction Role Clear handler
+async function handleReactionRoleClear(interaction) {
+    const messageId = interaction.options.getString('message_id');
+
+    try {
+        // Find the message
+        const message = await interaction.channel.messages.fetch(messageId);
+        if (!message) {
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct and the message is in this channel.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Get all reaction roles for this message
+        const reactionRolesList = await db.select().from(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, interaction.guild.id),
+                eq(reactionRoles.messageId, messageId)
+            ));
+
+        if (reactionRolesList.length === 0) {
+            const embed = createAstraeeEmbed(
+                'No Reaction Roles',
+                `No reaction roles found for this message.`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Remove all reaction roles from database
+        await db.delete(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, interaction.guild.id),
+                eq(reactionRoles.messageId, messageId)
+            ));
+
+        // Remove all reactions from message
+        try {
+            for (const reactionRole of reactionRolesList) {
+                await message.reactions.cache.get(reactionRole.emoji)?.users.remove(client.user);
+            }
+        } catch (reactionError) {
+            console.log('Could not remove some reactions from message:', reactionError.message);
+        }
+
+        const embed = createAstraeeEmbed(
+            'Reaction Roles Cleared',
+            `All reaction roles cleared from this message with elegant precision.\n\n**Removed:** ${reactionRolesList.length} reaction roles`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error clearing reaction roles:', error);
+        
+        if (error.code === 10008) { // Unknown Message
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+        
         throw error;
     }
 }
