@@ -15,6 +15,8 @@ app.get('/', (req, res) => {
 
 app.listen(port, '0.0.0.0', () => {
   console.log(`Web server running on port ${port}`);
+}).on('error', (err) => {
+  console.error('Express server error:', err);
 });
 
 // Create Discord client
@@ -323,6 +325,26 @@ client.on('interactionCreate', async interaction => {
     const { commandName } = interaction;
 
     try {
+        // Check if this interaction has already been processed
+        const interactionId = interaction.id;
+        if (interactionTracking.has(interactionId)) {
+            console.log(`Interaction ${interactionId} already processed, ignoring duplicate`);
+            return;
+        }
+        
+        // Mark this interaction as being processed
+        interactionTracking.set(interactionId, Date.now());
+        
+        // Clean up old interaction tracking (older than 5 minutes)
+        const now = Date.now();
+        for (const [id, timestamp] of interactionTracking.entries()) {
+            if (now - timestamp > 300000) { // 5 minutes
+                interactionTracking.delete(id);
+            }
+        }
+        
+        console.log(`Processing command: ${commandName} for user ${interaction.user.username}`);
+        
         // Embed Management Commands
         if (commandName === 'embed') {
             await handleEmbedCommand(interaction);
@@ -352,17 +374,23 @@ client.on('interactionCreate', async interaction => {
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
         
-        const embed = createAstraeeEmbed(
-            'Graceful Error',
-            'An unexpected disturbance occurred. Please try again with renewed focus.',
-            '#E74C3C'
-        );
-        
-        if (interaction.replied) {
-            await interaction.followUp({ embeds: [embed], ephemeral: true });
-        } else {
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+        // Only try to reply if the interaction hasn't been acknowledged
+        if (!interaction.replied && !interaction.deferred) {
+            try {
+                const embed = createAstraeeEmbed(
+                    'Graceful Error',
+                    'An unexpected disturbance occurred. Please try again with renewed focus.',
+                    '#E74C3C'
+                );
+                
+                await interaction.reply({ embeds: [embed], ephemeral: true });
+            } catch (replyError) {
+                console.error('Failed to send error reply:', replyError.message);
+            }
         }
+    } finally {
+        // Clean up interaction tracking
+        interactionTracking.delete(interaction.id);
     }
 });
 
@@ -513,6 +541,7 @@ async function handleEmbedCommand(interaction) {
 
 // Command execution tracking to prevent duplicates
 const commandExecutions = new Map();
+const interactionTracking = new Map();
 
 // Stream create handler - updated to match original BotGhost design
 async function handleStreamCreate(interaction) {
@@ -668,14 +697,7 @@ async function handleStreamCreate(interaction) {
             });
         }
 
-        // Send DM confirmation using original design
-        try {
-            const dmEmbed = createStreamCreatedDMEmbed(streamId, itemName, dueDate);
-            await interaction.user.send({ embeds: [dmEmbed] });
-            console.log(`DM sent to user ${interaction.user.username} for stream ${streamId}`);
-        } catch (error) {
-            console.log('Could not send DM to user:', error.message);
-        }
+        // DM functionality removed to prevent duplicate issues
 
     } catch (error) {
         console.error('Error creating stream:', error);
