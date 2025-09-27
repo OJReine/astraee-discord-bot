@@ -68,26 +68,22 @@ const generateStreamId = () => {
 
 // Create stream created embed - matches original BotGhost design
 const createStreamCreatedEmbed = (user, guild, streamId, itemName, shop, dueDate, days, creator) => {
-    const shopName = shop === 'nina-babes' ? 'Nina Babes' : 'Wildethorn Ladies';
     const dueUnix = Math.floor(dueDate.getTime() / 1000);
     const nowUnix = Math.floor(Date.now() / 1000);
     
     return new EmbedBuilder()
         .setAuthor({ 
-            name: user.username, 
+            name: user.displayName || user.username, 
             iconURL: user.displayAvatarURL() 
         })
         .setThumbnail(guild.iconURL())
-        .setTitle('✦ Stream Tracker Log ✦')
-        .setDescription(`A new stream has been registered. Details are below—please follow the workflow until the due date.✦
+        .setTitle('✨ Stream Tracker Log ✨')
+        .setDescription(`A new stream has been registered. Details are below—please follow the workflow until the due date.
 
-Model: <@${user.id}>
-
-Items: ${itemName}
-
-Due: <t:${dueUnix}:D> in ${days} days${creator ? `\n\nCreator: <@${creator.id}>` : ''}
-
-Stream ID: ${streamId}`)
+**Model:** <@${user.id}>
+**Items:** ${itemName}
+**Due:** <t:${dueUnix}:D> in ${days} days${creator ? `\n**Creator:** <@${creator.id}>` : ''}
+**Stream ID:** ${streamId}`)
         .setColor('#9B59B6')
         .setFooter({ text: `❖ ${getRandomMotto()} ❖ - Astraee | Created: <t:${nowUnix}:D>` })
         .setTimestamp();
@@ -99,16 +95,14 @@ const createStreamCreatedDMEmbed = (streamId, itemName, dueDate) => {
     const nowUnix = Math.floor(Date.now() / 1000);
     
     return new EmbedBuilder()
-        .setTitle('✦ Greetings, radiant star! ✦')
+        .setTitle('✨ Greetings, radiant star! ✨')
         .setDescription(`Your L&B stream has been created. Retain these details for your records and use them with /completestream when complete:
 
-Stream ID: ${streamId}
+**Stream ID:** ${streamId}
+**Items:** ${itemName}
+**Due Date:** <t:${dueUnix}:D>
 
-Items: ${itemName}
-
-Due Date: <t:${dueUnix}:D>
-
-Next Step: When your stream is complete, use /completestream stream_id:${streamId} to mark it done.
+**Next Step:** When your stream is complete, use /completestream stream_id:${streamId} to mark it done.
 
 Keep this ID safe—your brilliance guides the cosmos!`)
         .setColor('#9B59B6')
@@ -125,7 +119,7 @@ const createActiveStreamsEmbed = (guild, streamList, totalStreams) => {
             name: guild.name 
         })
         .setThumbnail(guild.iconURL())
-        .setTitle('✦ Active Streams Constellation ✦')
+        .setTitle('🌟 Active Streams Constellation 🌟')
         .setDescription(`Behold the current alignments:
 
 ${streamList}
@@ -141,7 +135,7 @@ const createNoActiveStreamsEmbed = () => {
     const nowUnix = Math.floor(Date.now() / 1000);
     
     return new EmbedBuilder()
-        .setTitle('✦ Active Streams Overview ✦')
+        .setTitle('✨ Active Streams Overview ✨')
         .setDescription('There are currently no active streams in the constellation. Check back when new collaborations align.')
         .setColor('#9B59B6')
         .setFooter({ text: `❖ Even the stars rest in quiet moments. ❖ - Astraee | At: <t:${nowUnix}:D>` })
@@ -155,20 +149,19 @@ const createStreamCompletionEmbed = (guild, model, itemName, streamId, dueDate) 
     
     return new EmbedBuilder()
         .setAuthor({ 
-            name: guild.name 
+            name: model.displayName || model.username, 
+            iconURL: model.displayAvatarURL() 
         })
         .setThumbnail(guild.iconURL())
-        .setTitle('✦ Stream Completion Log ✦')
+        .setTitle('✨ Stream Completion Log ✨')
         .setDescription(`A stream has reached its harmonious end. Details below:
 
-Model: <@${model.id}>
-
-Items: ${itemName}
-
-Original Due: <t:${dueUnix}:D>
+**Model:** <@${model.id}>
+**Items:** ${itemName}
+**Original Due:** <t:${dueUnix}:D>
 
 Well done—your light shines brighter.`)
-        .setColor('#9B59B6')
+        .setColor('#27AE60')
         .setFooter({ text: `❖ Grace in action reflects the harmony within. ❖ - Astraee | Stream ID: ${streamId} | Completed: <t:${nowUnix}:F>` })
         .setTimestamp();
 };
@@ -176,7 +169,7 @@ Well done—your light shines brighter.`)
 // Create stream not found embed
 const createStreamNotFoundEmbed = () => {
     return new EmbedBuilder()
-        .setTitle('✦ Stream Not Found ✦')
+        .setTitle('✨ Stream Not Found ✨')
         .setDescription('No alignment matches that ID. Verify and try again.')
         .setColor('#E74C3C')
         .setFooter({ text: '❖ Patience is the finest art. ❖ - Astraee' })
@@ -244,22 +237,25 @@ const commands = [
     new SlashCommandBuilder()
         .setName('streamcreate')
         .setDescription('Register a new IMVU stream with ceremonial precision')
-        .addStringOption(option => option.setName('item_name').setDescription('Name of the IMVU item').setRequired(true))
-        .addStringOption(option => option.setName('shop').setDescription('Which shop').setRequired(true)
+        .addStringOption(option => option.setName('items').setDescription('Name of the IMVU items').setRequired(true))
+        .addStringOption(option => option.setName('shop').setDescription('Shop name').setRequired(true))
+        .addIntegerOption(option => option.setName('days').setDescription('Days until due').setRequired(true)
             .addChoices(
-                { name: 'Nina Babes', value: 'nina-babes' },
-                { name: 'Wildethorn Ladies', value: 'wildethorn-ladies' }
+                { name: '1 Day', value: 1 },
+                { name: '3 Days', value: 3 },
+                { name: '5 Days', value: 5 },
+                { name: '7 Days', value: 7 }
             ))
-        .addIntegerOption(option => option.setName('days').setDescription('Days until due (default: 7)').setMinValue(1).setMaxValue(30))
-        .addStringOption(option => option.setName('item_link').setDescription('Link to the IMVU item'))
-        .addUserOption(option => option.setName('creator').setDescription('Creator/Officer to tag'))
-        .addChannelOption(option => option.setName('channel').setDescription('Channel to post stream log (optional)')),
+        .addUserOption(option => option.setName('creator').setDescription('Creator to ping (optional)'))
+        .addChannelOption(option => option.setName('channel').setDescription('Channel to post stream log (optional)'))
+        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
 
     new SlashCommandBuilder()
         .setName('activestreams')
         .setDescription('View all active streams with days remaining')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
-        .addChannelOption(option => option.setName('channel').setDescription('Channel to send the list to (optional)')),
+        .addChannelOption(option => option.setName('channel').setDescription('Channel to send the list to (optional)'))
+        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
 
     new SlashCommandBuilder()
         .setName('completestream')
@@ -495,12 +491,12 @@ async function handleEmbedCommand(interaction) {
 
 // Stream create handler - updated to match original BotGhost design
 async function handleStreamCreate(interaction) {
-    const itemName = interaction.options.getString('item_name');
+    const itemName = interaction.options.getString('items');
     const shop = interaction.options.getString('shop');
-    const days = interaction.options.getInteger('days') || 7;
-    const itemLink = interaction.options.getString('item_link');
+    const days = interaction.options.getInteger('days');
     const creator = interaction.options.getUser('creator');
     const targetChannel = interaction.options.getChannel('channel');
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
 
     const streamId = generateStreamId();
     const dueDate = new Date();
@@ -512,7 +508,7 @@ async function handleStreamCreate(interaction) {
             modelId: interaction.user.id,
             creatorId: creator?.id,
             itemName,
-            itemLink,
+            itemLink: null, // Removed item link option
             dueDate,
             shop,
             serverId: interaction.guild.id
@@ -539,7 +535,8 @@ async function handleStreamCreate(interaction) {
 
         await interaction.reply({ 
             content: responseText,
-            embeds: [embed] 
+            embeds: [embed],
+            ephemeral: ephemeral
         });
 
         // If a specific channel is provided, also post there
@@ -570,6 +567,9 @@ async function handleStreamCreate(interaction) {
 
 // Active streams handler - updated to match original BotGhost design
 async function handleActiveStreams(interaction) {
+    const targetChannel = interaction.options.getChannel('channel');
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+    
     const activeStreams = await db.select().from(streams)
         .where(and(
             eq(streams.serverId, interaction.guild.id),
@@ -594,7 +594,27 @@ async function handleActiveStreams(interaction) {
 
     const embed = createActiveStreamsEmbed(interaction.guild, streamList, activeStreams.length);
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    // If a specific channel is provided, send there instead
+    if (targetChannel) {
+        try {
+            await targetChannel.send({ embeds: [embed] });
+            const confirmEmbed = createAstraeeEmbed(
+                'Streams Delivered',
+                `Active streams list has been sent to ${targetChannel} with elegant precision.`
+            );
+            return interaction.reply({ embeds: [confirmEmbed], ephemeral: true });
+        } catch (error) {
+            console.log('Could not send to target channel:', error.message);
+            const errorEmbed = createAstraeeEmbed(
+                'Delivery Failed',
+                `Could not send to ${targetChannel}. Please check permissions.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+        }
+    }
+
+    await interaction.reply({ embeds: [embed], ephemeral: ephemeral });
 }
 
 // Complete stream handler - updated to match original BotGhost design
