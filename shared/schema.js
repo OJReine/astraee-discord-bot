@@ -54,6 +54,18 @@ const welcomeSettings = pgTable('welcome_settings', {
   goodbyeChannelId: text('goodbye_channel_id'),
   welcomeMessage: text('welcome_message').default('Welcome to our constellation, {user}! ✦'),
   goodbyeMessage: text('goodbye_message').default('Farewell, {user}. May your light shine elsewhere. ✦'),
+  // Rich embed settings
+  useRichEmbed: boolean('use_rich_embed').default(false),
+  embedTitle: text('embed_title').default('✦ A New Star Joins Us ✦'),
+  embedDescription: text('embed_description'),
+  embedColor: text('embed_color').default('#9B59B6'),
+  embedThumbnail: text('embed_thumbnail'), // URL for thumbnail
+  embedImage: text('embed_image'), // URL for image
+  embedFooter: text('embed_footer').default('✦ "Every arrival marks the start of a new chapter." - Astraee ✦'),
+  // Channel links for first steps
+  rulesChannelId: text('rules_channel_id'),
+  startHereChannelId: text('start_here_channel_id'),
+  introChannelId: text('intro_channel_id'),
   enabled: boolean('enabled').default(true),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
@@ -68,6 +80,20 @@ const reactionRoles = pgTable('reaction_roles', {
   roleId: text('role_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull()
 });
+
+// Role usage tracking to prevent abuse
+const roleUsage = pgTable('role_usage', {
+  id: serial('id').primaryKey(),
+  serverId: text('server_id').notNull(),
+  userId: text('user_id').notNull(),
+  roleId: text('role_id').notNull(),
+  messageId: text('message_id').notNull(),
+  emoji: text('emoji').notNull(),
+  action: text('action').notNull(), // 'add' or 'remove'
+  createdAt: timestamp('created_at').defaultNow().notNull()
+}, (table) => ({
+  uniqueUserRolePerMessage: unique().on(table.userId, table.roleId, table.messageId)
+}));
 
 // Moderation logs
 const moderationLogs = pgTable('moderation_logs', {
@@ -211,6 +237,7 @@ module.exports = {
   streams,
   welcomeSettings,
   reactionRoles,
+  roleUsage,
   moderationLogs,
   monthlyStats,
   yearlySummaries,

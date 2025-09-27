@@ -1,6 +1,6 @@
 const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder, Collection, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { db } = require('./server/db');
-const { users, embedTemplates, streams, welcomeSettings, reactionRoles, moderationLogs, monthlyStats, yearlySummaries, userLevels, scheduledMessages, autoModSettings } = require('./shared/schema');
+const { users, embedTemplates, streams, welcomeSettings, reactionRoles, roleUsage, moderationLogs, monthlyStats, yearlySummaries, userLevels, scheduledMessages, autoModSettings } = require('./shared/schema');
 const { eq, and, gte, lt, desc } = require('drizzle-orm');
 const cron = require('node-cron');
 const express = require('express');
@@ -318,6 +318,17 @@ const commands = [
             .addChannelOption(option => option.setName('goodbye_channel').setDescription('Channel for goodbye messages'))
             .addStringOption(option => option.setName('welcome_message').setDescription('Welcome message template (use {user} for username)'))
             .addStringOption(option => option.setName('goodbye_message').setDescription('Goodbye message template (use {user} for username)')))
+        .addSubcommand(subcommand => subcommand.setName('embed').setDescription('Configure rich embed settings')
+            .addBooleanOption(option => option.setName('enabled').setDescription('Enable rich embeds').setRequired(true))
+            .addStringOption(option => option.setName('title').setDescription('Embed title'))
+            .addStringOption(option => option.setName('description').setDescription('Embed description'))
+            .addStringOption(option => option.setName('color').setDescription('Embed color (hex code)'))
+            .addStringOption(option => option.setName('thumbnail').setDescription('Thumbnail URL'))
+            .addStringOption(option => option.setName('image').setDescription('Image URL'))
+            .addStringOption(option => option.setName('footer').setDescription('Footer text'))
+            .addChannelOption(option => option.setName('rules_channel').setDescription('Rules channel for first steps'))
+            .addChannelOption(option => option.setName('start_here_channel').setDescription('Start here channel for first steps'))
+            .addChannelOption(option => option.setName('intro_channel').setDescription('Introduction channel for first steps')))
         .addSubcommand(subcommand => subcommand.setName('toggle').setDescription('Enable/disable welcome system')
             .addBooleanOption(option => option.setName('enabled').setDescription('Enable welcome system').setRequired(true)))
         .addSubcommand(subcommand => subcommand.setName('test').setDescription('Test welcome message'))
@@ -378,8 +389,65 @@ client.on('guildMemberAdd', async member => {
         }
 
         // Send welcome message
-        const welcomeMessage = settings[0].welcomeMessage.replace('{user}', member.toString());
-        await welcomeChannel.send(welcomeMessage);
+        if (settings[0].useRichEmbed) {
+            // Create rich embed welcome message
+            const embed = new EmbedBuilder()
+                .setTitle(settings[0].embedTitle)
+                .setColor(settings[0].embedColor || '#9B59B6')
+                .setFooter({ text: settings[0].embedFooter || '✦ "Every arrival marks the start of a new chapter." - Astraee ✦' })
+                .setTimestamp();
+
+            // Add description with user mention
+            if (settings[0].embedDescription) {
+                embed.setDescription(settings[0].embedDescription.replace('{user}', member.toString()));
+            } else {
+                embed.setDescription(`Welcome, ${member}! ✦ We are delighted to have you in **${member.guild.name}**, where creativity meets connection.`);
+            }
+
+            // Add thumbnail if set
+            if (settings[0].embedThumbnail) {
+                embed.setThumbnail(settings[0].embedThumbnail);
+            }
+
+            // Add image if set
+            if (settings[0].embedImage) {
+                embed.setImage(settings[0].embedImage);
+            }
+
+            // Add first steps fields if channels are configured
+            const fields = [];
+            if (settings[0].rulesChannelId) {
+                fields.push({
+                    name: '📋 Read Our Rules',
+                    value: `Visit ${member.guild.channels.cache.get(settings[0].rulesChannelId) || '#rules'} to understand our community standards.`,
+                    inline: false
+                });
+            }
+            if (settings[0].startHereChannelId) {
+                fields.push({
+                    name: '🚀 Get Started',
+                    value: `Visit ${member.guild.channels.cache.get(settings[0].startHereChannelId) || '#start-here'} to react and unlock the rest of the server.`,
+                    inline: false
+                });
+            }
+            if (settings[0].introChannelId) {
+                fields.push({
+                    name: '👋 Introduce Yourself',
+                    value: `Head to ${member.guild.channels.cache.get(settings[0].introChannelId) || '#introductions'} and start your journey with us.`,
+                    inline: false
+                });
+            }
+
+            if (fields.length > 0) {
+                embed.addFields(fields);
+            }
+
+            await welcomeChannel.send({ embeds: [embed] });
+        } else {
+            // Send simple text message
+            const welcomeMessage = settings[0].welcomeMessage.replace('{user}', member.toString());
+            await welcomeChannel.send(welcomeMessage);
+        }
 
         console.log(`✦ Welcome message sent for ${member.user.username} in ${member.guild.name} ✦`);
 
@@ -1440,6 +1508,9 @@ async function handleWelcomer(interaction) {
             case 'setup':
                 await handleWelcomerSetup(interaction);
                 break;
+            case 'embed':
+                await handleWelcomerEmbed(interaction);
+                break;
             case 'toggle':
                 await handleWelcomerToggle(interaction);
                 break;
@@ -1585,8 +1656,65 @@ async function handleWelcomerTest(interaction) {
         }
 
         // Send test message
-        const testMessage = settings[0].welcomeMessage.replace('{user}', interaction.user.toString());
-        await welcomeChannel.send(testMessage);
+        if (settings[0].useRichEmbed) {
+            // Create rich embed test message
+            const embed = new EmbedBuilder()
+                .setTitle(settings[0].embedTitle)
+                .setColor(settings[0].embedColor || '#9B59B6')
+                .setFooter({ text: settings[0].embedFooter || '✦ "Every arrival marks the start of a new chapter." - Astraee ✦' })
+                .setTimestamp();
+
+            // Add description with user mention
+            if (settings[0].embedDescription) {
+                embed.setDescription(settings[0].embedDescription.replace('{user}', interaction.user.toString()));
+            } else {
+                embed.setDescription(`Welcome, ${interaction.user}! ✦ We are delighted to have you in **${interaction.guild.name}**, where creativity meets connection.`);
+            }
+
+            // Add thumbnail if set
+            if (settings[0].embedThumbnail) {
+                embed.setThumbnail(settings[0].embedThumbnail);
+            }
+
+            // Add image if set
+            if (settings[0].embedImage) {
+                embed.setImage(settings[0].embedImage);
+            }
+
+            // Add first steps fields if channels are configured
+            const fields = [];
+            if (settings[0].rulesChannelId) {
+                fields.push({
+                    name: '📋 Read Our Rules',
+                    value: `Visit ${interaction.guild.channels.cache.get(settings[0].rulesChannelId) || '#rules'} to understand our community standards.`,
+                    inline: false
+                });
+            }
+            if (settings[0].startHereChannelId) {
+                fields.push({
+                    name: '🚀 Get Started',
+                    value: `Visit ${interaction.guild.channels.cache.get(settings[0].startHereChannelId) || '#start-here'} to react and unlock the rest of the server.`,
+                    inline: false
+                });
+            }
+            if (settings[0].introChannelId) {
+                fields.push({
+                    name: '👋 Introduce Yourself',
+                    value: `Head to ${interaction.guild.channels.cache.get(settings[0].introChannelId) || '#introductions'} and start your journey with us.`,
+                    inline: false
+                });
+            }
+
+            if (fields.length > 0) {
+                embed.addFields(fields);
+            }
+
+            await welcomeChannel.send({ embeds: [embed] });
+        } else {
+            // Send simple text message
+            const testMessage = settings[0].welcomeMessage.replace('{user}', interaction.user.toString());
+            await welcomeChannel.send(testMessage);
+        }
 
         const embed = createAstraeeEmbed(
             'Test Message Sent',
@@ -1627,7 +1755,7 @@ async function handleWelcomerStatus(interaction) {
 
         const embed = createAstraeeEmbed(
             'Welcome System Status',
-            `**Status:** ${setting.enabled ? 'Enabled ✨' : 'Disabled ❌'}\n**Welcome Channel:** ${welcomeChannel || 'Not set'}\n**Goodbye Channel:** ${goodbyeChannel || 'Not set'}\n**Welcome Message:** ${setting.welcomeMessage}\n**Goodbye Message:** ${setting.goodbyeMessage}`,
+            `**Status:** ${setting.enabled ? 'Enabled ✨' : 'Disabled ❌'}\n**Rich Embeds:** ${setting.useRichEmbed ? 'Enabled ✨' : 'Disabled ❌'}\n**Welcome Channel:** ${welcomeChannel || 'Not set'}\n**Goodbye Channel:** ${goodbyeChannel || 'Not set'}\n**Welcome Message:** ${setting.welcomeMessage}\n**Goodbye Message:** ${setting.goodbyeMessage}\n\n**Rich Embed Settings:**\n**Title:** ${setting.embedTitle}\n**Description:** ${setting.embedDescription || 'Default'}\n**Color:** ${setting.embedColor}\n**Thumbnail:** ${setting.embedThumbnail ? 'Set' : 'Not set'}\n**Image:** ${setting.embedImage ? 'Set' : 'Not set'}\n**Footer:** ${setting.embedFooter}\n\n**Channel Links:**\n**Rules:** ${setting.rulesChannelId ? `<#${setting.rulesChannelId}>` : 'Not set'}\n**Start Here:** ${setting.startHereChannelId ? `<#${setting.startHereChannelId}>` : 'Not set'}\n**Intro:** ${setting.introChannelId ? `<#${setting.introChannelId}>` : 'Not set'}`,
             setting.enabled ? '#98FB98' : '#E74C3C'
         );
 
@@ -1635,6 +1763,73 @@ async function handleWelcomerStatus(interaction) {
 
     } catch (error) {
         console.error('Error getting welcomer status:', error);
+        throw error;
+    }
+}
+
+// Welcomer embed handler - Configure rich embed settings
+async function handleWelcomerEmbed(interaction) {
+    const enabled = interaction.options.getBoolean('enabled');
+    const title = interaction.options.getString('title');
+    const description = interaction.options.getString('description');
+    const color = interaction.options.getString('color');
+    const thumbnail = interaction.options.getString('thumbnail');
+    const image = interaction.options.getString('image');
+    const footer = interaction.options.getString('footer');
+    const rulesChannel = interaction.options.getChannel('rules_channel');
+    const startHereChannel = interaction.options.getChannel('start_here_channel');
+    const introChannel = interaction.options.getChannel('intro_channel');
+
+    try {
+        // Check if settings already exist
+        const existingSettings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (existingSettings.length > 0) {
+            // Update existing settings
+            await db.update(welcomeSettings)
+                .set({
+                    useRichEmbed: enabled,
+                    embedTitle: title || existingSettings[0].embedTitle,
+                    embedDescription: description || existingSettings[0].embedDescription,
+                    embedColor: color || existingSettings[0].embedColor,
+                    embedThumbnail: thumbnail || existingSettings[0].embedThumbnail,
+                    embedImage: image || existingSettings[0].embedImage,
+                    embedFooter: footer || existingSettings[0].embedFooter,
+                    rulesChannelId: rulesChannel?.id || existingSettings[0].rulesChannelId,
+                    startHereChannelId: startHereChannel?.id || existingSettings[0].startHereChannelId,
+                    introChannelId: introChannel?.id || existingSettings[0].introChannelId,
+                    updatedAt: new Date()
+                })
+                .where(eq(welcomeSettings.serverId, interaction.guild.id));
+        } else {
+            // Create new settings
+            await db.insert(welcomeSettings).values({
+                serverId: interaction.guild.id,
+                useRichEmbed: enabled,
+                embedTitle: title || '✦ A New Star Joins Us ✦',
+                embedDescription: description,
+                embedColor: color || '#9B59B6',
+                embedThumbnail: thumbnail,
+                embedImage: image,
+                embedFooter: footer || '✦ "Every arrival marks the start of a new chapter." - Astraee ✦',
+                rulesChannelId: rulesChannel?.id,
+                startHereChannelId: startHereChannel?.id,
+                introChannelId: introChannel?.id
+            });
+        }
+
+        const embed = createAstraeeEmbed(
+            'Rich Embed Configured',
+            `Rich embed settings have been configured with elegant precision.\n\n**Rich Embeds:** ${enabled ? 'Enabled ✨' : 'Disabled ❌'}\n**Title:** ${title || 'Default'}\n**Description:** ${description ? 'Custom' : 'Default'}\n**Color:** ${color || '#9B59B6'}\n**Thumbnail:** ${thumbnail ? 'Set' : 'Not set'}\n**Image:** ${image ? 'Set' : 'Not set'}\n**Footer:** ${footer ? 'Custom' : 'Default'}\n**Rules Channel:** ${rulesChannel || 'Not set'}\n**Start Here Channel:** ${startHereChannel || 'Not set'}\n**Intro Channel:** ${introChannel || 'Not set'}`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error configuring welcomer embed:', error);
         throw error;
     }
 }
