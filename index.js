@@ -1,6 +1,6 @@
 const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder, Collection, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { db } = require('./server/db');
-const { users, embedTemplates, streams } = require('./shared/schema');
+const { users, embedTemplates, streams, welcomeSettings, reactionRoles, moderationLogs, monthlyStats, yearlySummaries, userLevels, scheduledMessages, autoModSettings } = require('./shared/schema');
 const { eq, and, gte, lt, desc } = require('drizzle-orm');
 const cron = require('node-cron');
 const express = require('express');
