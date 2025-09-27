@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder, Collection, PermissionFlagsBits } = require('discord.js');
+const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder, Collection, PermissionFlagsBits, MessageFlags } = require('discord.js');
 const { db } = require('./server/db');
 const { users, embedTemplates, streams } = require('./shared/schema');
 const { eq, and, gte, lt, desc } = require('drizzle-orm');
@@ -240,7 +240,6 @@ const commands = [
         .setName('streamcreate')
         .setDescription('Register a new IMVU stream with ceremonial precision')
         .addStringOption(option => option.setName('items').setDescription('Name of the IMVU items').setRequired(true))
-        .addUserOption(option => option.setName('model').setDescription('Model who will be streaming (defaults to you)'))
         .addIntegerOption(option => option.setName('days').setDescription('Days until due').setRequired(true)
             .addChoices(
                 { name: '1 Day', value: 1 },
@@ -248,6 +247,7 @@ const commands = [
                 { name: '5 Days', value: 5 },
                 { name: '7 Days', value: 7 }
             ))
+        .addUserOption(option => option.setName('model').setDescription('Model who will be streaming (defaults to you)'))
         .addUserOption(option => option.setName('creator').setDescription('Creator to ping (optional)'))
         .addRoleOption(option => option.setName('role').setDescription('Role to ping for notifications (e.g., @Stream Officers)'))
         .addChannelOption(option => option.setName('channel').setDescription('Channel to post stream log (optional)'))
@@ -383,7 +383,7 @@ client.on('interactionCreate', async interaction => {
                     '#E74C3C'
                 );
                 
-                await interaction.reply({ embeds: [embed], ephemeral: true });
+                await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
             } catch (replyError) {
                 console.error('Failed to send error reply:', replyError.message);
             }
@@ -408,7 +408,7 @@ async function handleEmbedCommand(interaction) {
         // Validate color format
         if (color && !color.match(/^#[0-9A-F]{6}$/i)) {
             const embed = createAstraeeEmbed('Refinement Needed', 'Please provide color in proper hex format (e.g., #9B59B6).', '#E74C3C');
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         try {
@@ -431,7 +431,7 @@ async function handleEmbedCommand(interaction) {
         } catch (error) {
             if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
                 const embed = createAstraeeEmbed('Gentle Correction', `A template named "${name}" already graces this server. Choose a new name to avoid confusion.`, '#F39C12');
-                await interaction.reply({ embeds: [embed], ephemeral: true });
+                await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
             } else {
                 throw error;
             }
@@ -447,7 +447,7 @@ async function handleEmbedCommand(interaction) {
                 'Empty Archive',
                 'No embed templates have been created yet.\n\nBegin your collection with `/embed create`.'
             );
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         const templateList = templates.map((t, i) => 
@@ -459,7 +459,7 @@ async function handleEmbedCommand(interaction) {
             `Your stored templates:\n\n${templateList}\n\n*Use \`/embed send\` to deploy them with grace.*`
         );
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
     
     else if (subcommand === 'edit') {
@@ -472,7 +472,7 @@ async function handleEmbedCommand(interaction) {
         // Validate color format if provided
         if (color && !color.match(/^#[0-9A-F]{6}$/i)) {
             const embed = createAstraeeEmbed('Refinement Needed', 'Please provide color in proper hex format (e.g., #9B59B6).', '#E74C3C');
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         const [existingTemplate] = await db.select().from(embedTemplates)
@@ -483,7 +483,7 @@ async function handleEmbedCommand(interaction) {
 
         if (!existingTemplate) {
             const embed = createAstraeeEmbed('Template Not Found', `No template named "${name}" exists in this server's archive.`, '#E74C3C');
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         // Build update object with only provided fields
@@ -517,7 +517,7 @@ async function handleEmbedCommand(interaction) {
 
         if (!template) {
             const embed = createAstraeeEmbed('Template Not Found', `No template named "${name}" exists in this server's archive.`, '#E74C3C');
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         const sentEmbed = new EmbedBuilder()
@@ -535,7 +535,7 @@ async function handleEmbedCommand(interaction) {
             `Template "${name}" has been sent to ${channel} with elegant precision.`
         );
         
-        await interaction.reply({ embeds: [confirmEmbed], ephemeral: true });
+        await interaction.reply({ embeds: [confirmEmbed], flags: MessageFlags.Ephemeral });
     }
 }
 
@@ -563,7 +563,7 @@ async function handleStreamCreate(interaction) {
             'This command is already being processed. Please wait a moment.',
             '#F0E68C'
         );
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
     // Mark this command as being processed
@@ -603,7 +603,7 @@ async function handleStreamCreate(interaction) {
                 `A stream with the same details was created recently. Please wait before creating another.\n\n**Recent Stream ID:** ${recentStream.streamId}\n**Time since creation:** ${Math.round(timeDiff / 1000)} seconds`,
                 '#F0E68C'
             );
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
     }
 
@@ -627,7 +627,7 @@ async function handleStreamCreate(interaction) {
                 `Please wait a moment before creating another stream.\n\n**Last Stream ID:** ${lastStream.streamId}`,
                 '#F0E68C'
             );
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
     }
 
@@ -676,14 +676,14 @@ async function handleStreamCreate(interaction) {
                     'Stream Created',
                     `Stream has been created and sent to ${targetChannel} with elegant precision.`
                 );
-                await interaction.reply({ embeds: [confirmEmbed], ephemeral: true });
+                await interaction.reply({ embeds: [confirmEmbed], flags: MessageFlags.Ephemeral });
             } catch (error) {
                 console.log('Could not send to target channel:', error.message);
                 // Fallback to regular reply if channel send fails
                 await interaction.reply({ 
                     content: responseText,
                     embeds: [embed],
-                    ephemeral: ephemeral
+                    flags: ephemeral ? MessageFlags.Ephemeral : 0
                 });
             }
         } else {
@@ -691,7 +691,7 @@ async function handleStreamCreate(interaction) {
             await interaction.reply({ 
                 content: responseText,
                 embeds: [embed],
-                ephemeral: ephemeral
+                flags: ephemeral ? MessageFlags.Ephemeral : 0
             });
         }
 
@@ -714,7 +714,7 @@ async function handleStreamCreate(interaction) {
                 `A stream with this ID already exists. This might be due to a network issue.\n\n**Stream ID:** ${streamId}\n\nPlease try again in a moment.`,
                 '#E74C3C'
             );
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
         
         // Handle other database errors
@@ -723,7 +723,7 @@ async function handleStreamCreate(interaction) {
             'An error occurred while creating the stream. Please try again later.',
             '#E74C3C'
         );
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     } finally {
         // Clean up command execution tracking
         commandExecutions.delete(commandKey);
@@ -744,7 +744,7 @@ async function handleActiveStreams(interaction) {
 
     if (activeStreams.length === 0) {
         const embed = createNoActiveStreamsEmbed();
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
     const now = new Date();
@@ -775,7 +775,7 @@ async function handleActiveStreams(interaction) {
                 'Streams Delivered',
                 `Active streams list has been sent to ${targetChannel} with elegant precision.`
             );
-            return interaction.reply({ embeds: [confirmEmbed], ephemeral: true });
+            return interaction.reply({ embeds: [confirmEmbed], flags: MessageFlags.Ephemeral });
         } catch (error) {
             console.log('Could not send to target channel:', error.message);
             const errorEmbed = createAstraeeEmbed(
@@ -783,11 +783,11 @@ async function handleActiveStreams(interaction) {
                 `Could not send to ${targetChannel}. Please check permissions.`,
                 '#E74C3C'
             );
-            return interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+            return interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
         }
     }
 
-    await interaction.reply({ embeds: [embed], ephemeral: ephemeral });
+    await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
 }
 
 // Complete stream handler - updated to match original BotGhost design
@@ -806,7 +806,7 @@ async function handleCompleteStream(interaction) {
 
     if (!stream) {
         const embed = createStreamNotFoundEmbed();
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
     // Check permissions: either stream owner or member with Manage Messages
@@ -819,7 +819,7 @@ async function handleCompleteStream(interaction) {
             'Only the stream owner or officers with proper authority may complete this stream.\n\nSeek guidance from those with ceremonial permissions.',
             '#E74C3C'
         );
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
     // Delete completed stream from database instead of marking as completed
@@ -855,7 +855,7 @@ async function handleCompleteStream(interaction) {
                 'Completion Recorded',
                 `Stream **${streamId}** has been marked complete and sent to ${targetChannel}.\n\nYour dedication shines eternal in our constellation.`
             );
-            await interaction.reply({ embeds: [confirmEmbed], ephemeral: ephemeral });
+            await interaction.reply({ embeds: [confirmEmbed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
         } catch (error) {
             console.log('Could not send to target channel:', error.message);
             const errorEmbed = createAstraeeEmbed(
@@ -863,14 +863,14 @@ async function handleCompleteStream(interaction) {
                 `Could not send to ${targetChannel}. Please check permissions.`,
                 '#E74C3C'
             );
-            await interaction.reply({ embeds: [errorEmbed], ephemeral: true });
+            await interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
         }
     } else {
         // Send regular reply if no target channel
         await interaction.reply({ 
             content: responseText,
             embeds: [completionEmbed],
-            ephemeral: ephemeral
+            flags: ephemeral ? MessageFlags.Ephemeral : 0
         });
     }
 }
@@ -987,7 +987,7 @@ async function handleStreamInfo(interaction) {
 
     if (!stream) {
         const embed = createStreamNotFoundEmbed();
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
     const dueUnix = Math.floor(stream.dueDate.getTime() / 1000);
@@ -1008,7 +1008,7 @@ async function handleStreamInfo(interaction) {
 **Created:** <t:${Math.floor(stream.createdAt.getTime() / 1000)}:D>${stream.itemLink ? `\n**Item Link:** ${stream.itemLink}` : ''}${stream.creatorId ? `\n**Creator:** <@${stream.creatorId}>` : ''}`
     );
 
-    await interaction.reply({ embeds: [embed], ephemeral: true });
+    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 }
 
 // Stream list handler - list streams with optional filters
@@ -1038,9 +1038,9 @@ async function handleStreamList(interaction) {
         
         if (targetChannel) {
             await targetChannel.send({ embeds: [embed] });
-            await interaction.reply({ content: 'Stream list sent to the specified channel.', ephemeral: true });
+            await interaction.reply({ content: 'Stream list sent to the specified channel.', flags: MessageFlags.Ephemeral });
         } else {
-            await interaction.reply({ embeds: [embed], ephemeral: true });
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
         return;
     }
@@ -1062,9 +1062,9 @@ async function handleStreamList(interaction) {
 
     if (targetChannel) {
         await targetChannel.send({ embeds: [embed] });
-        await interaction.reply({ content: 'Stream list sent to the specified channel.', ephemeral: true });
+        await interaction.reply({ content: 'Stream list sent to the specified channel.', flags: MessageFlags.Ephemeral });
     } else {
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 }
 
@@ -1088,7 +1088,7 @@ async function handleCleanup(interaction) {
                 `No streams older than ${days} days found. Database is already clean! ✨`,
                 '#98FB98'
             );
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         // Delete old streams (regardless of status)
@@ -1104,7 +1104,7 @@ async function handleCleanup(interaction) {
             '#98FB98'
         );
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 
     } catch (error) {
         console.error('Error during cleanup:', error);
@@ -1113,7 +1113,7 @@ async function handleCleanup(interaction) {
             'An error occurred while cleaning up the database. Please try again later.',
             '#E74C3C'
         );
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 }
 
@@ -1127,7 +1127,7 @@ async function handleCleanupAll(interaction) {
             'You must confirm the deletion by setting the confirm option to true.',
             '#E74C3C'
         );
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
     try {
@@ -1141,7 +1141,7 @@ async function handleCleanupAll(interaction) {
                 'No streams found in database. Database is already clean! ✨',
                 '#98FB98'
             );
-            return interaction.reply({ embeds: [embed], ephemeral: true });
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
         // Delete ALL streams for this server
@@ -1154,7 +1154,7 @@ async function handleCleanupAll(interaction) {
             '#E74C3C'
         );
 
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 
     } catch (error) {
         console.error('Error during cleanup all:', error);
@@ -1163,7 +1163,7 @@ async function handleCleanupAll(interaction) {
             'An error occurred while cleaning up the database. Please try again later.',
             '#E74C3C'
         );
-        await interaction.reply({ embeds: [embed], ephemeral: true });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 }
 
