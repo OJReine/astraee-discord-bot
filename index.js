@@ -1,7 +1,7 @@
 const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder, Collection, PermissionFlagsBits } = require('discord.js');
 const { db } = require('./server/db');
 const { users, embedTemplates, streams } = require('./shared/schema');
-const { eq, and, gte, lt } = require('drizzle-orm');
+const { eq, and, gte, lt, desc } = require('drizzle-orm');
 const cron = require('node-cron');
 const express = require('express');
 
@@ -283,7 +283,13 @@ const commands = [
                 { name: 'Overdue', value: 'overdue' }
             ))
         .addUserOption(option => option.setName('model').setDescription('Filter by model'))
-        .addChannelOption(option => option.setName('channel').setDescription('Channel to send the list to (optional)'))
+        .addChannelOption(option => option.setName('channel').setDescription('Channel to send the list to (optional)')),
+
+    new SlashCommandBuilder()
+        .setName('cleanup')
+        .setDescription('Clean up old completed streams from database')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
+        .addIntegerOption(option => option.setName('days').setDescription('Delete streams older than X days (default: 7)').setMinValue(1).setMaxValue(30))
 ];
 
 // Register commands with Discord
@@ -330,6 +336,9 @@ client.on('interactionCreate', async interaction => {
         }
         else if (commandName === 'streamlist') {
             await handleStreamList(interaction);
+        }
+        else if (commandName === 'cleanup') {
+            await handleCleanup(interaction);
         }
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
@@ -527,6 +536,30 @@ async function handleStreamCreate(interaction) {
         }
     }
 
+    // Additional check: prevent rapid-fire duplicate commands
+    const userRecentStreams = await db.select().from(streams)
+        .where(and(
+            eq(streams.modelId, interaction.user.id),
+            eq(streams.serverId, interaction.guild.id),
+            eq(streams.status, 'active')
+        ))
+        .orderBy(desc(streams.createdAt))
+        .limit(1);
+
+    if (userRecentStreams.length > 0) {
+        const lastStream = userRecentStreams[0];
+        const timeDiff = Date.now() - lastStream.createdAt.getTime();
+        
+        if (timeDiff < 5000) { // 5 seconds between any stream creation
+            const embed = createAstraeeEmbed(
+                'Rate Limiting',
+                `Please wait a moment before creating another stream.\n\n**Last Stream ID:** ${lastStream.streamId}`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+    }
+
     const streamId = generateStreamId();
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + days);
@@ -700,13 +733,8 @@ async function handleCompleteStream(interaction) {
         return interaction.reply({ embeds: [embed], ephemeral: true });
     }
 
-    // Update stream status
-    await db.update(streams)
-        .set({ 
-            status: 'completed',
-            completedAt: new Date(),
-            updatedAt: new Date()
-        })
+    // Delete completed stream from database instead of marking as completed
+    await db.delete(streams)
         .where(eq(streams.id, stream.id));
 
     // Get model user for embed
@@ -838,6 +866,26 @@ function startReminderSystem() {
         }
     });
     
+    // Run daily cleanup at 2:00 AM to remove old completed streams
+    cron.schedule('0 2 * * *', async () => {
+        console.log('✦ Running daily database cleanup ✦');
+        
+        try {
+            const cutoffDate = new Date();
+            cutoffDate.setDate(cutoffDate.getDate() - 7); // Clean up streams older than 7 days
+
+            const deletedStreams = await db.delete(streams)
+                .where(and(
+                    eq(streams.status, 'completed'),
+                    lt(streams.completedAt, cutoffDate)
+                ));
+
+            console.log(`✦ Daily cleanup completed - removed old completed streams ✦`);
+        } catch (error) {
+            console.error('Error during daily cleanup:', error);
+        }
+    });
+    
     console.log('✦ Reminder system initiated with elegant precision ✦');
 }
 
@@ -930,6 +978,57 @@ async function handleStreamList(interaction) {
         await targetChannel.send({ embeds: [embed] });
         await interaction.reply({ content: 'Stream list sent to the specified channel.', ephemeral: true });
     } else {
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+    }
+}
+
+// Cleanup handler - remove old completed streams
+async function handleCleanup(interaction) {
+    const days = interaction.options.getInteger('days') || 7;
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - days);
+
+    try {
+        // Find old completed streams
+        const oldStreams = await db.select().from(streams)
+            .where(and(
+                eq(streams.serverId, interaction.guild.id),
+                eq(streams.status, 'completed'),
+                lt(streams.completedAt, cutoffDate)
+            ));
+
+        if (oldStreams.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Database Cleanup',
+                `No completed streams older than ${days} days found. Database is already clean! ✨`,
+                '#98FB98'
+            );
+            return interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+
+        // Delete old completed streams
+        await db.delete(streams)
+            .where(and(
+                eq(streams.serverId, interaction.guild.id),
+                eq(streams.status, 'completed'),
+                lt(streams.completedAt, cutoffDate)
+            ));
+
+        const embed = createAstraeeEmbed(
+            'Database Cleanup Complete',
+            `Successfully cleaned up ${oldStreams.length} completed streams older than ${days} days.\n\n**Streams removed:**\n${oldStreams.map(s => `• ${s.streamId} - ${s.itemName}`).join('\n')}`,
+            '#98FB98'
+        );
+
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+
+    } catch (error) {
+        console.error('Error during cleanup:', error);
+        const embed = createAstraeeEmbed(
+            'Cleanup Error',
+            'An error occurred while cleaning up the database. Please try again later.',
+            '#E74C3C'
+        );
         await interaction.reply({ embeds: [embed], ephemeral: true });
     }
 }
