@@ -306,7 +306,22 @@ const commands = [
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageMessages)
         .addStringOption(option => option.setName('message').setDescription('Message to send').setRequired(true))
         .addChannelOption(option => option.setName('channel').setDescription('Channel to send to (defaults to current channel)'))
-        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)'))
+        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
+
+    // Community Management Commands
+    new SlashCommandBuilder()
+        .setName('welcomer')
+        .setDescription('Manage welcome and goodbye system with elegant precision')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+        .addSubcommand(subcommand => subcommand.setName('setup').setDescription('Setup welcome system')
+            .addChannelOption(option => option.setName('welcome_channel').setDescription('Channel for welcome messages'))
+            .addChannelOption(option => option.setName('goodbye_channel').setDescription('Channel for goodbye messages'))
+            .addStringOption(option => option.setName('welcome_message').setDescription('Welcome message template (use {user} for username)'))
+            .addStringOption(option => option.setName('goodbye_message').setDescription('Goodbye message template (use {user} for username)')))
+        .addSubcommand(subcommand => subcommand.setName('toggle').setDescription('Enable/disable welcome system')
+            .addBooleanOption(option => option.setName('enabled').setDescription('Enable welcome system').setRequired(true)))
+        .addSubcommand(subcommand => subcommand.setName('test').setDescription('Test welcome message'))
+        .addSubcommand(subcommand => subcommand.setName('status').setDescription('View current welcome system settings'))
 ];
 
 // Register commands with Discord
@@ -324,6 +339,63 @@ client.once('ready', async () => {
         
     } catch (error) {
         console.error('Error registering commands:', error);
+    }
+});
+
+// Handle guild member events for welcome/goodbye system
+client.on('guildMemberAdd', async member => {
+    try {
+        // Get welcome settings for this server
+        const settings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, member.guild.id))
+            .limit(1);
+
+        if (settings.length === 0 || !settings[0].enabled || !settings[0].welcomeChannelId) {
+            return; // Welcome system not configured or disabled
+        }
+
+        const welcomeChannel = member.guild.channels.cache.get(settings[0].welcomeChannelId);
+        if (!welcomeChannel) {
+            console.log(`Welcome channel not found for server ${member.guild.id}`);
+            return;
+        }
+
+        // Send welcome message
+        const welcomeMessage = settings[0].welcomeMessage.replace('{user}', member.toString());
+        await welcomeChannel.send(welcomeMessage);
+
+        console.log(`✦ Welcome message sent for ${member.user.username} in ${member.guild.name} ✦`);
+
+    } catch (error) {
+        console.error('Error sending welcome message:', error);
+    }
+});
+
+client.on('guildMemberRemove', async member => {
+    try {
+        // Get welcome settings for this server
+        const settings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, member.guild.id))
+            .limit(1);
+
+        if (settings.length === 0 || !settings[0].enabled || !settings[0].goodbyeChannelId) {
+            return; // Goodbye system not configured or disabled
+        }
+
+        const goodbyeChannel = member.guild.channels.cache.get(settings[0].goodbyeChannelId);
+        if (!goodbyeChannel) {
+            console.log(`Goodbye channel not found for server ${member.guild.id}`);
+            return;
+        }
+
+        // Send goodbye message
+        const goodbyeMessage = settings[0].goodbyeMessage.replace('{user}', member.user.username);
+        await goodbyeChannel.send(goodbyeMessage);
+
+        console.log(`✦ Goodbye message sent for ${member.user.username} in ${member.guild.name} ✦`);
+
+    } catch (error) {
+        console.error('Error sending goodbye message:', error);
     }
 });
 
@@ -383,6 +455,10 @@ client.on('interactionCreate', async interaction => {
         // Utility Commands
         else if (commandName === 'say') {
             await handleSay(interaction);
+        }
+        // Community Management Commands
+        else if (commandName === 'welcomer') {
+            await handleWelcomer(interaction);
         }
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
@@ -1240,6 +1316,214 @@ async function handleSay(interaction) {
             embeds: [errorEmbed], 
             flags: MessageFlags.Ephemeral 
         });
+    }
+}
+
+// Welcomer command handler - Manage welcome and goodbye system
+async function handleWelcomer(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'setup':
+                await handleWelcomerSetup(interaction);
+                break;
+            case 'toggle':
+                await handleWelcomerToggle(interaction);
+                break;
+            case 'test':
+                await handleWelcomerTest(interaction);
+                break;
+            case 'status':
+                await handleWelcomerStatus(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in welcomer command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Welcomer Error',
+            'An error occurred while managing the welcome system. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Welcomer setup handler
+async function handleWelcomerSetup(interaction) {
+    const welcomeChannel = interaction.options.getChannel('welcome_channel');
+    const goodbyeChannel = interaction.options.getChannel('goodbye_channel');
+    const welcomeMessage = interaction.options.getString('welcome_message');
+    const goodbyeMessage = interaction.options.getString('goodbye_message');
+
+    try {
+        // Check if settings already exist
+        const existingSettings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (existingSettings.length > 0) {
+            // Update existing settings
+            await db.update(welcomeSettings)
+                .set({
+                    welcomeChannelId: welcomeChannel?.id || existingSettings[0].welcomeChannelId,
+                    goodbyeChannelId: goodbyeChannel?.id || existingSettings[0].goodbyeChannelId,
+                    welcomeMessage: welcomeMessage || existingSettings[0].welcomeMessage,
+                    goodbyeMessage: goodbyeMessage || existingSettings[0].goodbyeMessage,
+                    updatedAt: new Date()
+                })
+                .where(eq(welcomeSettings.serverId, interaction.guild.id));
+        } else {
+            // Create new settings
+            await db.insert(welcomeSettings).values({
+                serverId: interaction.guild.id,
+                welcomeChannelId: welcomeChannel?.id,
+                goodbyeChannelId: goodbyeChannel?.id,
+                welcomeMessage: welcomeMessage || 'Welcome to our constellation, {user}! ✦',
+                goodbyeMessage: goodbyeMessage || 'Farewell, {user}. May your light shine elsewhere. ✦'
+            });
+        }
+
+        const embed = createAstraeeEmbed(
+            'Welcome System Configured',
+            `The welcome system has been configured with elegant precision.\n\n**Welcome Channel:** ${welcomeChannel ? welcomeChannel : 'Not set'}\n**Goodbye Channel:** ${goodbyeChannel ? goodbyeChannel : 'Not set'}\n**Welcome Message:** ${welcomeMessage || 'Default'}\n**Goodbye Message:** ${goodbyeMessage || 'Default'}`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error setting up welcomer:', error);
+        throw error;
+    }
+}
+
+// Welcomer toggle handler
+async function handleWelcomerToggle(interaction) {
+    const enabled = interaction.options.getBoolean('enabled');
+
+    try {
+        // Check if settings exist
+        const existingSettings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (existingSettings.length > 0) {
+            // Update existing settings
+            await db.update(welcomeSettings)
+                .set({
+                    enabled: enabled,
+                    updatedAt: new Date()
+                })
+                .where(eq(welcomeSettings.serverId, interaction.guild.id));
+        } else {
+            // Create new settings with default values
+            await db.insert(welcomeSettings).values({
+                serverId: interaction.guild.id,
+                enabled: enabled
+            });
+        }
+
+        const embed = createAstraeeEmbed(
+            'Welcome System Toggled',
+            `The welcome system has been ${enabled ? 'enabled' : 'disabled'} with elegant precision.`,
+            enabled ? '#98FB98' : '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error toggling welcomer:', error);
+        throw error;
+    }
+}
+
+// Welcomer test handler
+async function handleWelcomerTest(interaction) {
+    try {
+        // Get current settings
+        const settings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (settings.length === 0 || !settings[0].enabled) {
+            const embed = createAstraeeEmbed(
+                'Welcome System Not Configured',
+                'The welcome system is not set up or enabled. Use `/welcomer setup` to configure it.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const welcomeChannel = settings[0].welcomeChannelId ? 
+            interaction.guild.channels.cache.get(settings[0].welcomeChannelId) : null;
+
+        if (!welcomeChannel) {
+            const embed = createAstraeeEmbed(
+                'Welcome Channel Not Set',
+                'No welcome channel has been configured. Use `/welcomer setup` to set one.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Send test message
+        const testMessage = settings[0].welcomeMessage.replace('{user}', interaction.user.toString());
+        await welcomeChannel.send(testMessage);
+
+        const embed = createAstraeeEmbed(
+            'Test Message Sent',
+            `Test welcome message sent to ${welcomeChannel} with elegant precision.`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error testing welcomer:', error);
+        throw error;
+    }
+}
+
+// Welcomer status handler
+async function handleWelcomerStatus(interaction) {
+    try {
+        // Get current settings
+        const settings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (settings.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Welcome System Status',
+                'The welcome system is not configured. Use `/welcomer setup` to configure it.',
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const setting = settings[0];
+        const welcomeChannel = setting.welcomeChannelId ? 
+            interaction.guild.channels.cache.get(setting.welcomeChannelId) : null;
+        const goodbyeChannel = setting.goodbyeChannelId ? 
+            interaction.guild.channels.cache.get(setting.goodbyeChannelId) : null;
+
+        const embed = createAstraeeEmbed(
+            'Welcome System Status',
+            `**Status:** ${setting.enabled ? 'Enabled ✨' : 'Disabled ❌'}\n**Welcome Channel:** ${welcomeChannel || 'Not set'}\n**Goodbye Channel:** ${goodbyeChannel || 'Not set'}\n**Welcome Message:** ${setting.welcomeMessage}\n**Goodbye Message:** ${setting.goodbyeMessage}`,
+            setting.enabled ? '#98FB98' : '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error getting welcomer status:', error);
+        throw error;
     }
 }
 
