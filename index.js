@@ -517,9 +517,35 @@ client.on('messageReactionAdd', async (reaction, user) => {
 
         if (!role || !member) return;
 
+        // Check if user already has this role from this message
+        const existingUsage = await db.select().from(roleUsage)
+            .where(and(
+                eq(roleUsage.serverId, reaction.message.guild.id),
+                eq(roleUsage.userId, user.id),
+                eq(roleUsage.messageId, reaction.message.id),
+                eq(roleUsage.roleId, reactionRole[0].roleId)
+            ))
+            .limit(1);
+
+        if (existingUsage.length > 0) {
+            console.log(`✦ User ${user.username} already has role ${role.name} from this message ✦`);
+            return; // User already has this role from this message
+        }
+
         // Add the role to the member
         try {
             await member.roles.add(role);
+            
+            // Track role usage
+            await db.insert(roleUsage).values({
+                serverId: reaction.message.guild.id,
+                userId: user.id,
+                roleId: reactionRole[0].roleId,
+                messageId: reaction.message.id,
+                emoji: reaction.emoji.name || reaction.emoji.toString(),
+                action: 'add'
+            });
+            
             console.log(`✦ Role ${role.name} added to ${user.username} via reaction ✦`);
         } catch (error) {
             console.error('Error adding role:', error);
@@ -565,6 +591,17 @@ client.on('messageReactionRemove', async (reaction, user) => {
         // Remove the role from the member
         try {
             await member.roles.remove(role);
+            
+            // Track role usage
+            await db.insert(roleUsage).values({
+                serverId: reaction.message.guild.id,
+                userId: user.id,
+                roleId: reactionRole[0].roleId,
+                messageId: reaction.message.id,
+                emoji: reaction.emoji.name || reaction.emoji.toString(),
+                action: 'remove'
+            });
+            
             console.log(`✦ Role ${role.name} removed from ${user.username} via reaction ✦`);
         } catch (error) {
             console.error('Error removing role:', error);
