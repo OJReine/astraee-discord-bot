@@ -503,6 +503,30 @@ async function handleStreamCreate(interaction) {
     const targetChannel = interaction.options.getChannel('channel');
     const ephemeral = interaction.options.getBoolean('ephemeral') || false;
 
+    // Check for duplicate stream creation within last 30 seconds
+    const recentStreams = await db.select().from(streams)
+        .where(and(
+            eq(streams.modelId, interaction.user.id),
+            eq(streams.itemName, itemName),
+            eq(streams.serverId, interaction.guild.id),
+            eq(streams.status, 'active')
+        ));
+
+    // If there's a recent stream with same details, don't create another
+    if (recentStreams.length > 0) {
+        const recentStream = recentStreams[0];
+        const timeDiff = Date.now() - recentStream.createdAt.getTime();
+        
+        if (timeDiff < 30000) { // 30 seconds
+            const embed = createAstraeeEmbed(
+                'Duplicate Prevention',
+                `A stream with the same details was created recently. Please wait before creating another.\n\n**Recent Stream ID:** ${recentStream.streamId}`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+    }
+
     const streamId = generateStreamId();
     const dueDate = new Date();
     dueDate.setDate(dueDate.getDate() + days);
