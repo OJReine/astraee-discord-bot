@@ -402,7 +402,82 @@ const commands = [
         .setDefaultMemberPermissions(PermissionFlagsBits.ModerateMembers)
         .addUserOption(option => option.setName('user').setDescription('User to view logs for').setRequired(true))
         .addIntegerOption(option => option.setName('limit').setDescription('Number of logs to show (1-25)').setMinValue(1).setMaxValue(25))
-        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)'))
+        .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
+
+    new SlashCommandBuilder()
+        .setName('stats')
+        .setDescription('View stream statistics and leaderboards with elegant precision')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('monthly')
+                .setDescription('View monthly stream statistics')
+                .addIntegerOption(option =>
+                    option.setName('year')
+                        .setDescription('Year to view (default: current year)')
+                        .setMinValue(2020)
+                        .setMaxValue(2030))
+                .addIntegerOption(option =>
+                    option.setName('month')
+                        .setDescription('Month to view (1-12, default: current month)')
+                        .setMinValue(1)
+                        .setMaxValue(12)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('yearly')
+                .setDescription('View yearly summary and achievements')
+                .addIntegerOption(option =>
+                    option.setName('year')
+                        .setDescription('Year to view (default: current year)')
+                        .setMinValue(2020)
+                        .setMaxValue(2030)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('submit')
+                .setDescription('Submit yearly summary (admin only)')
+                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+                .addIntegerOption(option =>
+                    option.setName('year')
+                        .setDescription('Year for the summary (default: current year)')
+                        .setMinValue(2020)
+                        .setMaxValue(2030))
+                .addStringOption(option =>
+                    option.setName('summary')
+                        .setDescription('Congratulatory summary text')
+                        .setRequired(true)
+                        .setMaxLength(2000))
+                .addIntegerOption(option =>
+                    option.setName('total_streams')
+                        .setDescription('Total streams for the year')
+                        .setMinValue(0))
+                .addStringOption(option =>
+                    option.setName('top_performer')
+                        .setDescription('Top performing model name')
+                        .setMaxLength(100))
+                .addNumberOption(option =>
+                    option.setName('average_streams')
+                        .setDescription('Average streams per model')
+                        .setMinValue(0))
+                .addStringOption(option =>
+                    option.setName('achievements')
+                        .setDescription('Special achievements and milestones')
+                        .setMaxLength(1000)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('leaderboard')
+                .setDescription('View stream leaderboard')
+                .addStringOption(option =>
+                    option.setName('timeframe')
+                        .setDescription('Timeframe for leaderboard')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'This Month', value: 'month' },
+                            { name: 'All Time', value: 'alltime' }
+                        ))
+                .addIntegerOption(option =>
+                    option.setName('limit')
+                        .setDescription('Number of users to show (default: 10)')
+                        .setMinValue(5)
+                        .setMaxValue(25)))
 ];
 
 // Register commands with Discord
@@ -748,6 +823,9 @@ client.on('interactionCreate', async interaction => {
         }
         else if (commandName === 'modlogs') {
             await handleModLogs(interaction);
+        }
+        else if (commandName === 'stats') {
+            await handleStats(interaction);
         }
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
@@ -1256,6 +1334,9 @@ async function handleCompleteStream(interaction) {
             flags: ephemeral ? MessageFlags.Ephemeral : 0
         });
     }
+
+    // Update monthly statistics for the model
+    await updateMonthlyStats(interaction.guild.id, stream.modelId);
 }
 
 // Reminder system - updated to match original BotGhost design
@@ -2569,6 +2650,415 @@ async function handleModLogs(interaction) {
         );
         
         await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Statistics command handler - Track monthly stream counts and yearly summaries
+async function handleStats(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'monthly':
+                await handleStatsMonthly(interaction);
+                break;
+            case 'yearly':
+                await handleStatsYearly(interaction);
+                break;
+            case 'submit':
+                await handleStatsSubmit(interaction);
+                break;
+            case 'leaderboard':
+                await handleStatsLeaderboard(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in stats command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Statistics Error',
+            'An error occurred while processing statistics. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Handle monthly statistics display
+async function handleStatsMonthly(interaction) {
+    const year = interaction.options.getInteger('year') || new Date().getFullYear();
+    const month = interaction.options.getInteger('month') || new Date().getMonth() + 1;
+
+    try {
+        // Get monthly stats for the server
+        const monthlyStatsData = await db.select().from(monthlyStats)
+            .where(and(
+                eq(monthlyStats.serverId, interaction.guild.id),
+                eq(monthlyStats.year, year),
+                eq(monthlyStats.month, month)
+            ));
+
+        if (monthlyStatsData.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Monthly Statistics',
+                `No stream data found for **${getMonthName(month)} ${year}**.\n\nStart creating streams to build your monthly statistics! ✦`,
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Sort by stream count (descending)
+        monthlyStatsData.sort((a, b) => b.streamCount - a.streamCount);
+
+        // Create leaderboard embed
+        const embed = new EmbedBuilder()
+            .setTitle(`✦ Monthly Statistics - ${getMonthName(month)} ${year} ✦`)
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Progress is measured not by perfection, but by persistence." - Astraee ✦` })
+            .setTimestamp();
+
+        // Add top performers
+        const topPerformers = monthlyStatsData.slice(0, 10);
+        let leaderboardText = '';
+        
+        for (const stat of topPerformers) {
+            const user = await client.users.fetch(stat.userId).catch(() => null);
+            const username = user ? user.displayName : `Unknown User (${stat.userId})`;
+            const index = topPerformers.indexOf(stat);
+            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📊';
+            leaderboardText += `${medal} **${username}** - ${stat.streamCount} streams\n`;
+        }
+
+        embed.addFields({
+            name: '🏆 Top Performers',
+            value: leaderboardText || 'No data available',
+            inline: false
+        });
+
+        // Add summary statistics
+        const totalStreams = monthlyStatsData.reduce((sum, stat) => sum + stat.streamCount, 0);
+        const averageStreams = Math.round(totalStreams / monthlyStatsData.length * 10) / 10;
+        const topPerformer = monthlyStatsData[0];
+
+        embed.addFields(
+            {
+                name: '📈 Summary',
+                value: `**Total Streams:** ${totalStreams}\n**Active Models:** ${monthlyStatsData.length}\n**Average per Model:** ${averageStreams}`,
+                inline: true
+            },
+            {
+                name: '🌟 Top Performer',
+                value: `**${topPerformer.streamCount} streams**\n${await client.users.fetch(topPerformer.userId).then(u => u.displayName).catch(() => 'Unknown User')}`,
+                inline: true
+            }
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching monthly stats:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Statistics Error',
+            'Failed to retrieve monthly statistics. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle yearly statistics display
+async function handleStatsYearly(interaction) {
+    const year = interaction.options.getInteger('year') || new Date().getFullYear();
+
+    try {
+        // Get yearly summary for the server
+        const yearlySummary = await db.select().from(yearlySummaries)
+            .where(and(
+                eq(yearlySummaries.serverId, interaction.guild.id),
+                eq(yearlySummaries.year, year)
+            ))
+            .limit(1);
+
+        if (yearlySummary.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Yearly Summary',
+                `No yearly summary found for **${year}**.\n\nAdmins can submit yearly summaries using \`/stats submit\` ✦`,
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const summary = yearlySummary[0];
+
+        // Create congratulatory embed
+        const embed = new EmbedBuilder()
+            .setTitle(`✦ ${year} Yearly Summary ✦`)
+            .setColor('#F39C12')
+            .setDescription(`**Congratulations to all our amazing models!** 🎉\n\n${summary.summaryText}`)
+            .setFooter({ text: `✦ "Every year brings new achievements and endless possibilities." - Astraee ✦` })
+            .setTimestamp();
+
+        // Add statistics if available
+        if (summary.totalStreams || summary.topPerformer || summary.averageStreams) {
+            const statsText = [];
+            if (summary.totalStreams) statsText.push(`**Total Streams:** ${summary.totalStreams}`);
+            if (summary.topPerformer) statsText.push(`**Top Performer:** ${summary.topPerformer}`);
+            if (summary.averageStreams) statsText.push(`**Average per Model:** ${summary.averageStreams}`);
+
+            embed.addFields({
+                name: '📊 Yearly Statistics',
+                value: statsText.join('\n'),
+                inline: false
+            });
+        }
+
+        // Add special achievements if any
+        if (summary.achievements) {
+            embed.addFields({
+                name: '🏆 Special Achievements',
+                value: summary.achievements,
+                inline: false
+            });
+        }
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching yearly stats:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Statistics Error',
+            'Failed to retrieve yearly summary. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle yearly summary submission (admin only)
+async function handleStatsSubmit(interaction) {
+    const year = interaction.options.getInteger('year') || new Date().getFullYear();
+    const summaryText = interaction.options.getString('summary');
+    const totalStreams = interaction.options.getInteger('total_streams');
+    const topPerformer = interaction.options.getString('top_performer');
+    const averageStreams = interaction.options.getNumber('average_streams');
+    const achievements = interaction.options.getString('achievements');
+
+    try {
+        // Check if summary already exists for this year
+        const existingSummary = await db.select().from(yearlySummaries)
+            .where(and(
+                eq(yearlySummaries.serverId, interaction.guild.id),
+                eq(yearlySummaries.year, year)
+            ))
+            .limit(1);
+
+        if (existingSummary.length > 0) {
+            // Update existing summary
+            await db.update(yearlySummaries)
+                .set({
+                    summaryText,
+                    totalStreams,
+                    topPerformer,
+                    averageStreams,
+                    achievements,
+                    submittedBy: interaction.user.id,
+                    submittedAt: new Date()
+                })
+                .where(and(
+                    eq(yearlySummaries.serverId, interaction.guild.id),
+                    eq(yearlySummaries.year, year)
+                ));
+
+            const embed = createAstraeeEmbed(
+                'Yearly Summary Updated',
+                `Successfully updated the yearly summary for **${year}**! ✦\n\nMembers can now view it using \`/stats yearly\`.`,
+                '#27AE60'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        } else {
+            // Create new summary
+            await db.insert(yearlySummaries).values({
+                serverId: interaction.guild.id,
+                year,
+                summaryText,
+                totalStreams,
+                topPerformer,
+                averageStreams,
+                achievements,
+                submittedBy: interaction.user.id,
+                submittedAt: new Date()
+            });
+
+            const embed = createAstraeeEmbed(
+                'Yearly Summary Created',
+                `Successfully created the yearly summary for **${year}**! ✦\n\nMembers can now view it using \`/stats yearly\`.`,
+                '#27AE60'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+    } catch (error) {
+        console.error('Error submitting yearly summary:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Submission Error',
+            'Failed to submit yearly summary. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle leaderboard display
+async function handleStatsLeaderboard(interaction) {
+    const timeframe = interaction.options.getString('timeframe') || 'month';
+    const limit = interaction.options.getInteger('limit') || 10;
+
+    try {
+        let stats;
+        let title;
+
+        if (timeframe === 'month') {
+            const currentDate = new Date();
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+
+            stats = await db.select().from(monthlyStats)
+                .where(and(
+                    eq(monthlyStats.serverId, interaction.guild.id),
+                    eq(monthlyStats.year, year),
+                    eq(monthlyStats.month, month)
+                ))
+                .orderBy(desc(monthlyStats.streamCount))
+                .limit(limit);
+
+            title = `✦ Monthly Leaderboard - ${getMonthName(month)} ${year} ✦`;
+        } else {
+            // All-time leaderboard (sum of all monthly stats)
+            const allStats = await db.select().from(monthlyStats)
+                .where(eq(monthlyStats.serverId, interaction.guild.id));
+
+            // Group by user and sum their streams
+            const userTotals = {};
+            allStats.forEach(stat => {
+                if (!userTotals[stat.userId]) {
+                    userTotals[stat.userId] = 0;
+                }
+                userTotals[stat.userId] += stat.streamCount;
+            });
+
+            // Convert to array and sort
+            stats = Object.entries(userTotals)
+                .map(([userId, total]) => ({ userId, streamCount: total }))
+                .sort((a, b) => b.streamCount - a.streamCount)
+                .slice(0, limit);
+
+            title = '✦ All-Time Leaderboard ✦';
+        }
+
+        if (stats.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Leaderboard',
+                'No stream data found for the selected timeframe.\n\nStart creating streams to appear on the leaderboard! ✦',
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create leaderboard embed
+        const embed = new EmbedBuilder()
+            .setTitle(title)
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Excellence is not a destination, it's a journey." - Astraee ✦` })
+            .setTimestamp();
+
+        let leaderboardText = '';
+        stats.forEach((stat, index) => {
+            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📊';
+            leaderboardText += `${medal} **${stat.streamCount} streams** - <@${stat.userId}>\n`;
+        });
+
+        embed.addFields({
+            name: '🏆 Top Performers',
+            value: leaderboardText,
+            inline: false
+        });
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching leaderboard:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Leaderboard Error',
+            'Failed to retrieve leaderboard data. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Helper function to get month name
+function getMonthName(month) {
+    const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1] || 'Unknown';
+}
+
+// Auto-update monthly statistics when streams are completed
+async function updateMonthlyStats(serverId, userId) {
+    try {
+        const currentDate = new Date();
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
+
+        // Check if user already has stats for this month
+        const existingStats = await db.select().from(monthlyStats)
+            .where(and(
+                eq(monthlyStats.serverId, serverId),
+                eq(monthlyStats.userId, userId),
+                eq(monthlyStats.year, year),
+                eq(monthlyStats.month, month)
+            ))
+            .limit(1);
+
+        if (existingStats.length > 0) {
+            // Update existing stats
+            await db.update(monthlyStats)
+                .set({ streamCount: existingStats[0].streamCount + 1 })
+                .where(and(
+                    eq(monthlyStats.serverId, serverId),
+                    eq(monthlyStats.userId, userId),
+                    eq(monthlyStats.year, year),
+                    eq(monthlyStats.month, month)
+                ));
+        } else {
+            // Create new stats entry
+            await db.insert(monthlyStats).values({
+                serverId,
+                userId,
+                year,
+                month,
+                streamCount: 1
+            });
+        }
+
+        console.log(`✦ Updated monthly stats for user ${userId} in server ${serverId} ✦`);
+
+    } catch (error) {
+        console.error('Error updating monthly stats:', error);
     }
 }
 
