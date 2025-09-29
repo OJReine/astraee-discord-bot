@@ -461,7 +461,8 @@ const commands = [
             .addChannelOption(option => option.setName('intro_channel').setDescription('Introduction channel for first steps')))
         .addSubcommand(subcommand => subcommand.setName('toggle').setDescription('Enable/disable welcome system')
             .addBooleanOption(option => option.setName('enabled').setDescription('Enable welcome system').setRequired(true)))
-        .addSubcommand(subcommand => subcommand.setName('test').setDescription('Test welcome message'))
+        .addSubcommand(subcommand => subcommand.setName('test').setDescription('Test welcome message')
+            .addChannelOption(option => option.setName('channel').setDescription('Channel to send test message to (defaults to welcome channel)')))
         .addSubcommand(subcommand => subcommand.setName('status').setDescription('View current welcome system settings')),
 
     // Reaction Role Management
@@ -958,9 +959,9 @@ client.on('guildMemberAdd', async member => {
                 let thumbnailUrl = settings[0].embedThumbnail;
                 // Handle dynamic placeholders
                 if (thumbnailUrl === '{server.icon}') {
-                    thumbnailUrl = member.guild.iconURL({ dynamic: true, size: 512 });
+                    thumbnailUrl = interaction.guild.iconURL({ dynamic: true, size: 512 });
                 } else if (thumbnailUrl === '{user.avatar}') {
-                    thumbnailUrl = member.user.displayAvatarURL({ dynamic: true, size: 512 });
+                    thumbnailUrl = interaction.user.displayAvatarURL({ dynamic: true, size: 512 });
                 }
                 if (thumbnailUrl) {
                     embed.setThumbnail(thumbnailUrl);
@@ -969,7 +970,14 @@ client.on('guildMemberAdd', async member => {
 
             // Add image if set
             if (settings[0].embedImage) {
-                embed.setImage(settings[0].embedImage);
+                let imageUrl = settings[0].embedImage;
+                // Handle dynamic placeholders
+                if (imageUrl === '{server.icon}') {
+                    imageUrl = interaction.guild.iconURL({ dynamic: true, size: 512 });
+                } else if (imageUrl === '{user.avatar}') {
+                    imageUrl = interaction.user.displayAvatarURL({ dynamic: true, size: 512 });
+                }
+                if (imageUrl) embed.setImage(imageUrl);
             }
 
             // Add first steps fields if channels are configured
@@ -2308,13 +2316,14 @@ async function handleWelcomerTest(interaction) {
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
-        const welcomeChannel = settings[0].welcomeChannelId ? 
-            interaction.guild.channels.cache.get(settings[0].welcomeChannelId) : null;
+        // Get test channel (use provided channel or default welcome channel)
+        const testChannel = interaction.options.getChannel('channel') || 
+            (settings[0].welcomeChannelId ? interaction.guild.channels.cache.get(settings[0].welcomeChannelId) : null);
 
-        if (!welcomeChannel) {
+        if (!testChannel) {
             const embed = createAstraeeEmbed(
-                'Welcome Channel Not Set',
-                'No welcome channel has been configured. Use `/welcomer setup` to set one.',
+                'No Channel Available',
+                'No welcome channel has been configured and no test channel was provided. Use `/welcomer setup` to set a welcome channel or specify a test channel.',
                 '#E74C3C'
             );
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
@@ -2341,9 +2350,9 @@ async function handleWelcomerTest(interaction) {
                 let thumbnailUrl = settings[0].embedThumbnail;
                 // Handle dynamic placeholders
                 if (thumbnailUrl === '{server.icon}') {
-                    thumbnailUrl = member.guild.iconURL({ dynamic: true, size: 512 });
+                    thumbnailUrl = interaction.guild.iconURL({ dynamic: true, size: 512 });
                 } else if (thumbnailUrl === '{user.avatar}') {
-                    thumbnailUrl = member.user.displayAvatarURL({ dynamic: true, size: 512 });
+                    thumbnailUrl = interaction.user.displayAvatarURL({ dynamic: true, size: 512 });
                 }
                 if (thumbnailUrl) {
                     embed.setThumbnail(thumbnailUrl);
@@ -2352,7 +2361,14 @@ async function handleWelcomerTest(interaction) {
 
             // Add image if set
             if (settings[0].embedImage) {
-                embed.setImage(settings[0].embedImage);
+                let imageUrl = settings[0].embedImage;
+                // Handle dynamic placeholders
+                if (imageUrl === '{server.icon}') {
+                    imageUrl = interaction.guild.iconURL({ dynamic: true, size: 512 });
+                } else if (imageUrl === '{user.avatar}') {
+                    imageUrl = interaction.user.displayAvatarURL({ dynamic: true, size: 512 });
+                }
+                if (imageUrl) embed.setImage(imageUrl);
             }
 
             // Add first steps fields if channels are configured
@@ -2383,16 +2399,16 @@ async function handleWelcomerTest(interaction) {
                 embed.addFields(fields);
             }
 
-            await welcomeChannel.send({ embeds: [embed] });
+            await testChannel.send({ embeds: [embed] });
         } else {
             // Send simple text message
             const testMessage = settings[0].welcomeMessage.replace('{user}', interaction.user.toString());
-            await welcomeChannel.send(testMessage);
+            await testChannel.send(testMessage);
         }
 
         const embed = createAstraeeEmbed(
             'Test Message Sent',
-            `Test welcome message sent to ${welcomeChannel} with elegant precision.`,
+            `Test welcome message sent to ${testChannel} with elegant precision.`,
             '#9B59B6'
         );
 
