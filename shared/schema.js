@@ -205,7 +205,7 @@ const usersRelations = relations(users, ({ many }) => ({
 
 const embedTemplatesRelations = relations(embedTemplates, ({ one }) => ({
   author: one(users, {
-    fields: [embedTemplates.authorId],
+    fields: [embedTemplates.createdBy],
     references: [users.discordId]
   })
 }));
