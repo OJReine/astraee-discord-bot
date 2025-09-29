@@ -257,7 +257,49 @@ const commands = [
                             { name: 'Footer', value: 'footer' },
                             { name: 'Images (Thumbnail, Image)', value: 'images' },
                             { name: 'Fields', value: 'fields' }
-                        ))),
+                        )))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('template')
+                .setDescription('Use pre-made IMVU agency templates')
+                .addStringOption(option =>
+                    option.setName('type')
+                        .setDescription('Type of template to create')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Welcome Message', value: 'welcome' },
+                            { name: 'Stream Announcement', value: 'stream' },
+                            { name: 'Model Spotlight', value: 'spotlight' },
+                            { name: 'Agency Update', value: 'update' },
+                            { name: 'Event Notification', value: 'event' },
+                            { name: 'Rules & Guidelines', value: 'rules' },
+                            { name: 'Application Form', value: 'application' }
+                        ))
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('Name for your custom template')
+                        .setRequired(true)
+                        .setMaxLength(50)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('send')
+                .setDescription('Send an embed template to a channel')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('Name of the embed template')
+                        .setRequired(true))
+                .addChannelOption(option =>
+                    option.setName('channel')
+                        .setDescription('Channel to send the embed to')
+                        .setRequired(true))
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('User to personalize the embed for')
+                        .setRequired(false)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('gallery')
+                .setDescription('Browse all available IMVU agency templates')),
 
     new SlashCommandBuilder()
         .setName('settings')
@@ -5457,6 +5499,15 @@ async function handleEmbed(interaction) {
             case 'edit':
                 await handleEmbedEdit(interaction);
                 break;
+            case 'template':
+                await handleEmbedTemplate(interaction);
+                break;
+            case 'send':
+                await handleEmbedSend(interaction);
+                break;
+            case 'gallery':
+                await handleEmbedGallery(interaction);
+                break;
         }
     } catch (error) {
         console.error('Error in embed command:', error);
@@ -5880,6 +5931,14 @@ async function handleButtonInteraction(interaction) {
         } else if (customId.startsWith('embed_delete_')) {
             const name = customId.replace('embed_delete_', '');
             await deleteEmbedTemplate(interaction, name);
+        } else if (customId.startsWith('embed_send_')) {
+            const name = customId.replace('embed_send_', '');
+            await sendEmbedTemplate(interaction, name);
+        } else if (customId.startsWith('gallery_preview_')) {
+            const type = customId.replace('gallery_preview_', '');
+            await previewGalleryTemplate(interaction, type);
+        } else if (customId === 'gallery_create_custom') {
+            await showCustomTemplateModal(interaction);
         } else if (customId.startsWith('settings_')) {
             await handleSettingsButton(interaction);
         }
@@ -5903,6 +5962,11 @@ async function handleModalSubmit(interaction) {
         if (customId.startsWith('embed_modal_')) {
             const [, , component, name] = customId.split('_');
             await processEmbedModal(interaction, component, name);
+        } else if (customId.startsWith('embed_send_modal_')) {
+            const name = customId.replace('embed_send_modal_', '');
+            await processSendModal(interaction, name);
+        } else if (customId === 'gallery_custom_modal') {
+            await processCustomTemplateModal(interaction);
         } else if (customId.startsWith('settings_modal_')) {
             const [, , setting] = customId.split('_');
             await processSettingsModal(interaction, setting);
@@ -6200,51 +6264,706 @@ async function deleteEmbedTemplate(interaction, name) {
     }
 }
 
-async function processEmbedModal(interaction, component, name) {
+async function sendEmbedTemplate(interaction, name) {
     try {
-        const updateData = {};
-
-        switch (component) {
-            case 'basic':
-                updateData.title = interaction.fields.getTextInputValue('title');
-                updateData.description = interaction.fields.getTextInputValue('description');
-                updateData.color = interaction.fields.getTextInputValue('color');
-                break;
-
-            case 'author':
-                updateData.authorName = interaction.fields.getTextInputValue('author_name');
-                updateData.authorIcon = interaction.fields.getTextInputValue('author_icon');
-                break;
-
-            case 'footer':
-                updateData.footerText = interaction.fields.getTextInputValue('footer_text');
-                updateData.footerIcon = interaction.fields.getTextInputValue('footer_icon');
-                break;
-
-            case 'images':
-                updateData.thumbnail = interaction.fields.getTextInputValue('thumbnail');
-                updateData.image = interaction.fields.getTextInputValue('image');
-                break;
-        }
-
-        await db.update(embedTemplates)
-            .set(updateData)
+        const template = await db.select().from(embedTemplates)
             .where(and(
                 eq(embedTemplates.serverId, interaction.guild.id),
                 eq(embedTemplates.name, name)
-            ));
+            ))
+            .limit(1);
+
+        if (template.length === 0) {
+            await interaction.reply({
+                content: 'Embed template not found.',
+                ephemeral: true
+            });
+            return;
+        }
+
+        const embed = await buildEmbedFromTemplate(template[0], interaction.guild, interaction.user);
+        
+        // Create channel selection modal
+        const modal = new ModalBuilder()
+            .setCustomId(`embed_send_modal_${name}`)
+            .setTitle(`Send: ${name}`);
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('channel_id')
+                    .setLabel('Channel ID or #channel')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('#general or 123456789012345678')
+                    .setRequired(true)
+            )
+        );
+
+        await interaction.showModal(modal);
+
+    } catch (error) {
+        console.error('Error sending embed template:', error);
+        await interaction.reply({
+            content: 'Failed to send embed template.',
+            ephemeral: true
+        });
+    }
+}
+
+async function processSendModal(interaction, name) {
+    try {
+        const channelInput = interaction.fields.getTextInputValue('channel_id');
+        
+        // Parse channel input (could be #channel or channel ID)
+        let channel;
+        if (channelInput.startsWith('#')) {
+            const channelName = channelInput.slice(1);
+            channel = interaction.guild.channels.cache.find(c => c.name === channelName && c.type === 0);
+        } else {
+            channel = interaction.guild.channels.cache.get(channelInput);
+        }
+
+        if (!channel) {
+            await interaction.reply({
+                content: 'Channel not found. Please check the channel name or ID.',
+                ephemeral: true
+            });
+            return;
+        }
+
+        // Get template
+        const template = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ))
+            .limit(1);
+
+        if (template.length === 0) {
+            await interaction.reply({
+                content: 'Embed template not found.',
+                ephemeral: true
+            });
+            return;
+        }
+
+        // Build and send embed
+        const embed = await buildEmbedFromTemplate(template[0], interaction.guild, interaction.user);
+        await channel.send({ embeds: [embed] });
 
         await interaction.reply({
-            content: `Successfully updated **${component}** for embed template **"${name}"**! ✦`,
+            content: `Successfully sent embed template **"${name}"** to ${channel}! ✦`,
             ephemeral: true
         });
 
     } catch (error) {
-        console.error('Error processing embed modal:', error);
+        console.error('Error processing send modal:', error);
         await interaction.reply({
-            content: 'Failed to update embed template.',
+            content: 'Failed to send embed template.',
             ephemeral: true
         });
+    }
+}
+
+// Handle embed template creation from pre-made templates
+async function handleEmbedTemplate(interaction) {
+    const type = interaction.options.getString('type');
+    const name = interaction.options.getString('name');
+
+    try {
+        // Check if embed already exists
+        const existingEmbed = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ))
+            .limit(1);
+
+        if (existingEmbed.length > 0) {
+            const embed = createAstraeeEmbed(
+                'Embed Already Exists',
+                `An embed template with the name "${name}" already exists. Please choose a different name.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Get template data based on type
+        const templateData = getIMVUTemplate(type);
+        
+        // Create embed template from template data
+        await db.insert(embedTemplates).values({
+            serverId: interaction.guild.id,
+            name: name,
+            title: templateData.title,
+            description: templateData.description,
+            color: templateData.color,
+            authorName: templateData.authorName,
+            authorIcon: templateData.authorIcon,
+            footerText: templateData.footerText,
+            footerIcon: templateData.footerIcon,
+            thumbnail: templateData.thumbnail,
+            image: templateData.image,
+            fields: JSON.stringify(templateData.fields),
+            createdBy: interaction.user.id
+        });
+
+        // Create preview embed
+        const previewEmbed = await buildEmbedFromTemplate({
+            title: templateData.title,
+            description: templateData.description,
+            color: templateData.color,
+            authorName: templateData.authorName,
+            authorIcon: templateData.authorIcon,
+            footerText: templateData.footerText,
+            footerIcon: templateData.footerIcon,
+            thumbnail: templateData.thumbnail,
+            image: templateData.image,
+            fields: JSON.stringify(templateData.fields)
+        }, interaction.guild, interaction.user);
+
+        const successEmbed = new EmbedBuilder()
+            .setTitle('✦ IMVU Template Created ✦')
+            .setDescription(`Successfully created **"${name}"** from the **${getTemplateDisplayName(type)}** template! ✦\n\n**Preview:**`)
+            .setColor('#27AE60')
+            .setFooter({ text: `✦ "Professional templates for professional agencies." - Astraee ✦` })
+            .setTimestamp();
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`embed_edit_basic_${name}`)
+                    .setLabel('📝 Customize')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId(`embed_send_${name}`)
+                    .setLabel('📤 Send Now')
+                    .setStyle(ButtonStyle.Success)
+            );
+
+        await interaction.reply({ 
+            embeds: [successEmbed, previewEmbed], 
+            components: [row],
+            flags: MessageFlags.Ephemeral 
+        });
+
+    } catch (error) {
+        console.error('Error creating embed template:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Template Creation Error',
+            'Failed to create embed template. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle sending embed templates
+async function handleEmbedSend(interaction) {
+    const name = interaction.options.getString('name');
+    const channel = interaction.options.getChannel('channel');
+    const user = interaction.options.getUser('user');
+
+    try {
+        const template = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ))
+            .limit(1);
+
+        if (template.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Template Not Found',
+                `No embed template found with the name "${name}".`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Build embed with optional user personalization
+        const targetUser = user || interaction.user;
+        const embed = await buildEmbedFromTemplate(template[0], interaction.guild, targetUser);
+
+        // Send to target channel
+        await channel.send({ embeds: [embed] });
+
+        const successEmbed = createAstraeeEmbed(
+            'Embed Sent Successfully',
+            `Successfully sent embed template **"${name}"** to ${channel}! ✦`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [successEmbed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error sending embed:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Send Error',
+            'Failed to send embed template. Please check permissions and try again.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Get IMVU agency template data
+function getIMVUTemplate(type) {
+    const templates = {
+        welcome: {
+            title: '✦ Welcome to {server}! ✦',
+            description: 'Welcome, {user}! We\'re thrilled to have you join our constellation of talented models ✦\n\n**Getting Started:**\n• Get your first Access role in #start-here\n• Read the rules in #rules\n• Say hi in #general-chat\n• Check out our model showcase in #showcase\n\n**Need Help?**\nOur staff team is here to assist you. Don\'t hesitate to reach out!',
+            color: '#E91E63',
+            authorName: '{server}',
+            authorIcon: '{server.icon}',
+            footerText: 'You are our {server.memberCount.ordinal} member • {timestamp:date}',
+            footerIcon: '',
+            thumbnail: '{user.avatar}',
+            image: '',
+            fields: [
+                {
+                    name: '📋 Next Steps',
+                    value: '1. Read our rules\n2. Get verified\n3. Introduce yourself\n4. Start collaborating!',
+                    inline: true
+                },
+                {
+                    name: '🎯 Agency Goals',
+                    value: 'Professional modeling\nCreative collaboration\nCommunity building\nMutual support',
+                    inline: true
+                }
+            ]
+        },
+        stream: {
+            title: '✦ Stream Announcement ✦',
+            description: '**{user}** is going live with a new stream! ✦\n\n**Stream Details:**\n• **Items:** [Items will be specified]\n• **Duration:** [Duration will be specified]\n• **Shop:** [Shop will be specified]\n\n**Support our models by:**\n• Watching the stream\n• Engaging in chat\n• Sharing with friends\n• Following for updates',
+            color: '#9C27B0',
+            authorName: '{user}',
+            authorIcon: '{user.avatar}',
+            footerText: 'Stream starts at {timestamp:time} • {timestamp:date}',
+            footerIcon: '',
+            thumbnail: '',
+            image: '',
+            fields: [
+                {
+                    name: '📺 Stream Info',
+                    value: '**Platform:** IMVU\n**Type:** Modeling Stream\n**Audience:** All Members',
+                    inline: true
+                },
+                {
+                    name: '💬 Chat Rules',
+                    value: 'Be respectful\nStay on topic\nSupport the model\nHave fun!',
+                    inline: true
+                }
+            ]
+        },
+        spotlight: {
+            title: '✦ Model Spotlight ✦',
+            description: '**{user}** is our featured model this week! ✦\n\n**About {user.name}:**\n[Model description will be added]\n\n**Specialties:**\n• Fashion modeling\n• Creative poses\n• Collaborative shoots\n• Professional attitude',
+            color: '#FF9800',
+            authorName: '{user}',
+            authorIcon: '{user.avatar}',
+            footerText: 'Featured Model • {timestamp:date}',
+            footerIcon: '',
+            thumbnail: '{user.avatar}',
+            image: '',
+            fields: [
+                {
+                    name: '🌟 Achievements',
+                    value: '• Top performer this month\n• Most collaborative model\n• Excellent communication\n• Creative vision',
+                    inline: false
+                },
+                {
+                    name: '📸 Portfolio',
+                    value: 'Check out their work in #showcase\nView their latest streams\nFollow for updates',
+                    inline: false
+                }
+            ]
+        },
+        update: {
+            title: '✦ Agency Update ✦',
+            description: '**Important Announcement from {server}** ✦\n\n[Update content will be specified]\n\n**Key Points:**\n• [Point 1]\n• [Point 2]\n• [Point 3]\n\n**Action Required:**\nPlease read this update carefully and take any necessary action.',
+            color: '#2196F3',
+            authorName: '{server}',
+            authorIcon: '{server.icon}',
+            footerText: 'Agency Update • {timestamp:date}',
+            footerIcon: '',
+            thumbnail: '',
+            image: '',
+            fields: [
+                {
+                    name: '📢 Important',
+                    value: 'This update affects all members\nPlease read carefully\nContact staff with questions',
+                    inline: false
+                },
+                {
+                    name: '📞 Support',
+                    value: 'Need help? Contact staff\nQuestions? Ask in #support\nFeedback? Use #suggestions',
+                    inline: false
+                }
+            ]
+        },
+        event: {
+            title: '✦ Special Event ✦',
+            description: '**{server}** is hosting a special event! ✦\n\n**Event Details:**\n• **Date:** [Date will be specified]\n• **Time:** [Time will be specified]\n• **Type:** [Event type will be specified]\n• **Participants:** All members welcome!\n\n**What to Expect:**\n• Fun activities\n• Prizes and rewards\n• Community bonding\n• New collaborations',
+            color: '#4CAF50',
+            authorName: '{server}',
+            authorIcon: '{server.icon}',
+            footerText: 'Event starts at {timestamp:time} • {timestamp:date}',
+            footerIcon: '',
+            thumbnail: '',
+            image: '',
+            fields: [
+                {
+                    name: '🎉 Event Activities',
+                    value: '• Collaborative shoots\n• Fashion shows\n• Photo contests\n• Community games',
+                    inline: true
+                },
+                {
+                    name: '🏆 Prizes',
+                    value: '• Exclusive roles\n• Special recognition\n• Agency perks\n• Community status',
+                    inline: true
+                }
+            ]
+        },
+        rules: {
+            title: '✦ Rules & Guidelines ✦',
+            description: '**Welcome to {server}!** ✦\n\nTo maintain a professional and welcoming environment, please follow these guidelines:\n\n**General Rules:**\n• Be respectful to all members\n• Use appropriate language\n• Stay on topic in channels\n• Follow Discord ToS\n\n**Modeling Guidelines:**\n• Maintain professionalism\n• Collaborate respectfully\n• Share credit appropriately\n• Support fellow models',
+            color: '#F44336',
+            authorName: '{server}',
+            authorIcon: '{server.icon}',
+            footerText: 'Rules last updated • {timestamp:date}',
+            footerIcon: '',
+            thumbnail: '',
+            image: '',
+            fields: [
+                {
+                    name: '⚠️ Important',
+                    value: 'Breaking rules may result in:\n• Warning\n• Temporary restriction\n• Removal from agency',
+                    inline: true
+                },
+                {
+                    name: '📞 Contact',
+                    value: 'Questions about rules?\nContact staff team\nUse #support channel',
+                    inline: true
+                }
+            ]
+        },
+        application: {
+            title: '✦ Model Application ✦',
+            description: '**Interested in joining {server}?** ✦\n\nWe\'re always looking for talented, professional models to join our agency!\n\n**Requirements:**\n• Professional attitude\n• Active participation\n• Collaborative spirit\n• Respectful communication\n\n**Application Process:**\n1. Fill out the application form\n2. Submit your portfolio\n3. Wait for review\n4. Interview if selected',
+            color: '#673AB7',
+            authorName: '{server}',
+            authorIcon: '{server.icon}',
+            footerText: 'Applications reviewed weekly • {timestamp:date}',
+            footerIcon: '',
+            thumbnail: '',
+            image: '',
+            fields: [
+                {
+                    name: '📝 Application Form',
+                    value: '• Personal information\n• Modeling experience\n• Portfolio links\n• Availability',
+                    inline: true
+                },
+                {
+                    name: '✅ Benefits',
+                    value: '• Professional network\n• Collaborative opportunities\n• Skill development\n• Community support',
+                    inline: true
+                }
+            ]
+        }
+    };
+
+    return templates[type] || templates.welcome;
+}
+
+// Preview gallery template
+async function previewGalleryTemplate(interaction, type) {
+    try {
+        const templateData = getIMVUTemplate(type);
+        const previewEmbed = await buildEmbedFromTemplate({
+            title: templateData.title,
+            description: templateData.description,
+            color: templateData.color,
+            authorName: templateData.authorName,
+            authorIcon: templateData.authorIcon,
+            footerText: templateData.footerText,
+            footerIcon: templateData.footerIcon,
+            thumbnail: templateData.thumbnail,
+            image: templateData.image,
+            fields: JSON.stringify(templateData.fields)
+        }, interaction.guild, interaction.user);
+
+        const infoEmbed = new EmbedBuilder()
+            .setTitle(`✦ ${getTemplateDisplayName(type)} Preview ✦`)
+            .setDescription(`This is how the **${getTemplateDisplayName(type)}** template will look when used ✦\n\n**Features:**\n• Dynamic placeholders (user, server, timestamps)\n• Professional IMVU agency styling\n• Customizable fields and content\n• Ready for immediate use`)
+            .setColor('#27AE60')
+            .setFooter({ text: `✦ "See it in action before you create it." - Astraee ✦` })
+            .setTimestamp();
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`gallery_create_${type}`)
+                    .setLabel(`✨ Create ${getTemplateDisplayName(type)}`)
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId('gallery_back')
+                    .setLabel('🔙 Back to Gallery')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        await interaction.reply({ 
+            embeds: [infoEmbed, previewEmbed], 
+            components: [row],
+            flags: MessageFlags.Ephemeral 
+        });
+
+    } catch (error) {
+        console.error('Error previewing gallery template:', error);
+        await interaction.reply({
+            content: 'Failed to preview template.',
+            ephemeral: true
+        });
+    }
+}
+
+// Show custom template creation modal
+async function showCustomTemplateModal(interaction) {
+    try {
+        const modal = new ModalBuilder()
+            .setCustomId('gallery_custom_modal')
+            .setTitle('Create Custom Template');
+
+        modal.addComponents(
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('template_name')
+                    .setLabel('Template Name')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('my_custom_template')
+                    .setRequired(true)
+                    .setMaxLength(50)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('template_title')
+                    .setLabel('Title')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('✦ My Custom Template ✦')
+                    .setRequired(true)
+                    .setMaxLength(256)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('template_description')
+                    .setLabel('Description')
+                    .setStyle(TextInputStyle.Paragraph)
+                    .setPlaceholder('Enter your custom description...')
+                    .setRequired(true)
+                    .setMaxLength(4000)
+            ),
+            new ActionRowBuilder().addComponents(
+                new TextInputBuilder()
+                    .setCustomId('template_color')
+                    .setLabel('Color (Hex Code)')
+                    .setStyle(TextInputStyle.Short)
+                    .setPlaceholder('#9B59B6')
+                    .setRequired(true)
+                    .setMaxLength(7)
+            )
+        );
+
+        await interaction.showModal(modal);
+
+    } catch (error) {
+        console.error('Error showing custom template modal:', error);
+        await interaction.reply({
+            content: 'Failed to open custom template modal.',
+            ephemeral: true
+        });
+    }
+}
+
+// Get display name for template type
+function getTemplateDisplayName(type) {
+    const names = {
+        welcome: 'Welcome Message',
+        stream: 'Stream Announcement',
+        spotlight: 'Model Spotlight',
+        update: 'Agency Update',
+        event: 'Event Notification',
+        rules: 'Rules & Guidelines',
+        application: 'Application Form'
+    };
+
+    return names[type] || 'Custom Template';
+}
+
+async function processCustomTemplateModal(interaction) {
+    try {
+        const name = interaction.fields.getTextInputValue('template_name');
+        const title = interaction.fields.getTextInputValue('template_title');
+        const description = interaction.fields.getTextInputValue('template_description');
+        const color = interaction.fields.getTextInputValue('template_color');
+
+        // Check if embed already exists
+        const existingEmbed = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ))
+            .limit(1);
+
+        if (existingEmbed.length > 0) {
+            await interaction.reply({
+                content: `An embed template with the name "${name}" already exists. Please choose a different name.`,
+                ephemeral: true
+            });
+            return;
+        }
+
+        // Create custom embed template
+        await db.insert(embedTemplates).values({
+            serverId: interaction.guild.id,
+            name: name,
+            title: title,
+            description: description,
+            color: color,
+            authorName: '',
+            authorIcon: '',
+            footerText: '',
+            footerIcon: '',
+            thumbnail: '',
+            image: '',
+            fields: JSON.stringify([]),
+            createdBy: interaction.user.id
+        });
+
+        const successEmbed = createAstraeeEmbed(
+            'Custom Template Created',
+            `Successfully created custom template **"${name}"**! ✦\n\nYou can now customize it further using the embed editing commands.`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [successEmbed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error processing custom template modal:', error);
+        await interaction.reply({
+            content: 'Failed to create custom template.',
+            ephemeral: true
+        });
+    }
+}
+
+// Handle embed gallery
+async function handleEmbedGallery(interaction) {
+    try {
+        const embed = new EmbedBuilder()
+            .setTitle('✦ IMVU Agency Template Gallery ✦')
+            .setDescription('Browse our collection of professional templates designed specifically for IMVU modeling agencies ✦\n\n**Click the buttons below to preview each template!**')
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Professional templates for professional agencies." - Astraee ✦` })
+            .setTimestamp();
+
+        embed.addFields(
+            {
+                name: '👋 Welcome Templates',
+                value: 'Perfect for greeting new members\n• Professional welcome messages\n• Agency introduction\n• Getting started guides',
+                inline: true
+            },
+            {
+                name: '📺 Stream Templates',
+                value: 'Announce upcoming streams\n• Stream details\n• Support messages\n• Engagement prompts',
+                inline: true
+            },
+            {
+                name: '🌟 Spotlight Templates',
+                value: 'Feature your top models\n• Model showcases\n• Achievement highlights\n• Portfolio displays',
+                inline: true
+            },
+            {
+                name: '📢 Update Templates',
+                value: 'Important announcements\n• Agency updates\n• Policy changes\n• News updates',
+                inline: true
+            },
+            {
+                name: '🎉 Event Templates',
+                value: 'Special events & activities\n• Event announcements\n• Activity schedules\n• Prize information',
+                inline: true
+            },
+            {
+                name: '📋 Rules Templates',
+                value: 'Clear guidelines\n• Server rules\n• Modeling guidelines\n• Community standards',
+                inline: true
+            },
+            {
+                name: '📝 Application Templates',
+                value: 'Recruitment & applications\n• Application forms\n• Requirements\n• Benefits overview',
+                inline: true
+            }
+        );
+
+        const row1 = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('gallery_preview_welcome')
+                    .setLabel('👋 Welcome')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('gallery_preview_stream')
+                    .setLabel('📺 Stream')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('gallery_preview_spotlight')
+                    .setLabel('🌟 Spotlight')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('gallery_preview_update')
+                    .setLabel('📢 Update')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        const row2 = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('gallery_preview_event')
+                    .setLabel('🎉 Event')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('gallery_preview_rules')
+                    .setLabel('📋 Rules')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('gallery_preview_application')
+                    .setLabel('📝 Application')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('gallery_create_custom')
+                    .setLabel('✨ Create Custom')
+                    .setStyle(ButtonStyle.Success)
+            );
+
+        await interaction.reply({ 
+            embeds: [embed], 
+            components: [row1, row2],
+            flags: MessageFlags.Ephemeral 
+        });
+
+    } catch (error) {
+        console.error('Error showing embed gallery:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Gallery Error',
+            'Failed to load template gallery. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 }
 
