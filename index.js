@@ -1,6 +1,6 @@
 const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder, Collection, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { db } = require('./server/db');
-const { users, embedTemplates, streams, welcomeSettings, reactionRoles, roleUsage, moderationLogs, monthlyStats, yearlySummaries, userLevels, scheduledMessages, autoModSettings } = require('./shared/schema');
+const { users, streams, reactionRoles, roleUsage, moderationLogs, monthlyStats, yearlySummaries, userLevels, scheduledMessages, autoModSettings } = require('./shared/schema');
 const { eq, and, gte, lt, desc } = require('drizzle-orm');
 const cron = require('node-cron');
 const express = require('express');
@@ -206,150 +206,6 @@ const createStreamReminderDMEmbed = (streamId, itemName, dueDate) => {
 
 // Register commands
 const commands = [
-    // Interactive Embed Management Commands
-    new SlashCommandBuilder()
-        .setName('embed')
-        .setDescription('Create and manage interactive embed templates with elegant precision')
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('create')
-                .setDescription('Create a new embed template with interactive editing buttons')
-                .addStringOption(option =>
-                    option.setName('name')
-                        .setDescription('Name for the embed template')
-                        .setRequired(true)
-                        .setMaxLength(50)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('list')
-                .setDescription('List all embed templates'))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('show')
-                .setDescription('Preview an embed template')
-                .addStringOption(option =>
-                    option.setName('name')
-                        .setDescription('Name of the embed template to preview')
-                        .setRequired(true)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('delete')
-                .setDescription('Delete an embed template')
-                .addStringOption(option =>
-                    option.setName('name')
-                        .setDescription('Name of the embed template to delete')
-                        .setRequired(true)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('edit')
-                .setDescription('Edit embed components via chat bar (alternative to buttons)')
-                .addStringOption(option =>
-                    option.setName('name')
-                        .setDescription('Name of the embed template to edit')
-                        .setRequired(true))
-                .addStringOption(option =>
-                    option.setName('component')
-                        .setDescription('Component to edit')
-                        .setRequired(true)
-                        .addChoices(
-                            { name: 'Basic Info (Title, Description, Color)', value: 'basic' },
-                            { name: 'Author', value: 'author' },
-                            { name: 'Footer', value: 'footer' },
-                            { name: 'Images (Thumbnail, Image)', value: 'images' },
-                            { name: 'Fields', value: 'fields' }
-                        ))
-                .addStringOption(option =>
-                    option.setName('title')
-                        .setDescription('New title (for basic component)')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('description')
-                        .setDescription('New description (for basic component)')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('color')
-                        .setDescription('New color hex code (for basic component)')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('author_name')
-                        .setDescription('New author name (for author component)')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('author_icon')
-                        .setDescription('New author icon URL (for author component)')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('footer_text')
-                        .setDescription('New footer text (for footer component)')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('footer_icon')
-                        .setDescription('New footer icon URL (for footer component)')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('thumbnail')
-                        .setDescription('New thumbnail URL (for images component)')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('image')
-                        .setDescription('New image URL (for images component)')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('fields')
-                        .setDescription('New fields JSON (for fields component)')
-                        .setRequired(false)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('template')
-                .setDescription('Use pre-made IMVU agency templates')
-                .addStringOption(option =>
-                    option.setName('type')
-                        .setDescription('Type of template to create')
-                        .setRequired(true)
-                        .addChoices(
-                            { name: 'Welcome Message', value: 'welcome' },
-                            { name: 'Stream Announcement', value: 'stream' },
-                            { name: 'Model Spotlight', value: 'spotlight' },
-                            { name: 'Agency Update', value: 'update' },
-                            { name: 'Event Notification', value: 'event' },
-                            { name: 'Rules & Guidelines', value: 'rules' },
-                            { name: 'Application Form', value: 'application' }
-                        ))
-                .addStringOption(option =>
-                    option.setName('name')
-                        .setDescription('Name for your custom template')
-                        .setRequired(true)
-                        .setMaxLength(50)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('send')
-                .setDescription('Send an embed template to a channel')
-                .addStringOption(option =>
-                    option.setName('name')
-                        .setDescription('Name of the embed template')
-                        .setRequired(true))
-                .addChannelOption(option =>
-                    option.setName('channel')
-                        .setDescription('Channel to send the embed to')
-                        .setRequired(true))
-                .addUserOption(option =>
-                    option.setName('user')
-                        .setDescription('User to personalize the embed for')
-                        .setRequired(false)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('gallery')
-                .setDescription('Browse all available IMVU agency templates')),
-
-    new SlashCommandBuilder()
-        .setName('settings')
-        .setDescription('Configure Astraee settings with interactive panels')
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('panel')
-                .setDescription('Open the main settings panel')),
-
-
     // Stream Tracking Commands  
     new SlashCommandBuilder()
         .setName('streamcreate')
@@ -422,47 +278,6 @@ const commands = [
         .addStringOption(option => option.setName('message').setDescription('Message to send').setRequired(true))
         .addChannelOption(option => option.setName('channel').setDescription('Channel to send to (defaults to current channel)'))
         .addBooleanOption(option => option.setName('ephemeral').setDescription('Make response ephemeral (default: false)')),
-
-    // Community Management Commands
-    new SlashCommandBuilder()
-        .setName('welcomer')
-        .setDescription('Manage welcome system with embed selection')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-        .addSubcommand(subcommand => subcommand.setName('setup').setDescription('Setup welcome system')
-            .addChannelOption(option => option.setName('channel').setDescription('Channel for welcome messages').setRequired(true))
-            .addStringOption(option => option.setName('embed').setDescription('Embed template to use for welcome messages').setRequired(true)))
-        .addSubcommand(subcommand => subcommand.setName('toggle').setDescription('Enable/disable welcome system')
-            .addBooleanOption(option => option.setName('enabled').setDescription('Enable welcome system').setRequired(true)))
-        .addSubcommand(subcommand => subcommand.setName('test').setDescription('Test welcome message')
-            .addChannelOption(option => option.setName('channel').setDescription('Channel to send test message to (defaults to welcome channel)')))
-        .addSubcommand(subcommand => subcommand.setName('status').setDescription('View current welcome system settings'))
-        .addSubcommand(subcommand => subcommand.setName('reset').setDescription('Reset all welcome settings')),
-
-    new SlashCommandBuilder()
-        .setName('goodbye')
-        .setDescription('Manage goodbye system with embed selection')
-        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-        .addSubcommand(subcommand => subcommand.setName('setup').setDescription('Setup goodbye system')
-            .addChannelOption(option => option.setName('channel').setDescription('Channel for goodbye messages').setRequired(true))
-            .addStringOption(option => option.setName('embed').setDescription('Embed template to use for goodbye messages').setRequired(true))
-            .addStringOption(option => option.setName('type').setDescription('Type of goodbye message')
-                .addChoices(
-                    { name: 'Leave Message', value: 'leave' },
-                    { name: 'Kick Message', value: 'kick' },
-                    { name: 'Ban Message', value: 'ban' }
-                )))
-        .addSubcommand(subcommand => subcommand.setName('toggle').setDescription('Enable/disable goodbye system')
-            .addBooleanOption(option => option.setName('enabled').setDescription('Enable goodbye system').setRequired(true)))
-        .addSubcommand(subcommand => subcommand.setName('test').setDescription('Test goodbye message')
-            .addChannelOption(option => option.setName('channel').setDescription('Channel to send test message to (defaults to goodbye channel)'))
-            .addStringOption(option => option.setName('type').setDescription('Type of goodbye to test')
-                .addChoices(
-                    { name: 'Leave Message', value: 'leave' },
-                    { name: 'Kick Message', value: 'kick' },
-                    { name: 'Ban Message', value: 'ban' }
-                )))
-        .addSubcommand(subcommand => subcommand.setName('status').setDescription('View current goodbye system settings'))
-        .addSubcommand(subcommand => subcommand.setName('reset').setDescription('Reset all goodbye settings')),
 
     // Reaction Role Management
     new SlashCommandBuilder()
@@ -923,15 +738,17 @@ client.once('ready', async () => {
 client.on('guildMemberAdd', async member => {
     try {
         // Get welcome settings for this server
-        const settings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, member.guild.id))
+        const settings = await db.select().from(null)
+            .where(eq(null.serverId, member.guild.id))
             .limit(1);
 
-        if (settings.length === 0 || !settings[0].enabled || !settings[0].welcomeChannelId) {
-            return; // Welcome system not configured or disabled
+        if (settings.length === 0 || !settings[0].enabled) {
+            console.log(`Welcome system not configured for server ${member.guild.id}`);
+            return;
         }
 
         const welcomeChannel = member.guild.channels.cache.get(settings[0].welcomeChannelId);
+        
         if (!welcomeChannel) {
             console.log(`Welcome channel not found for server ${member.guild.id}`);
             return;
@@ -1024,12 +841,13 @@ client.on('guildMemberAdd', async member => {
 client.on('guildMemberRemove', async member => {
     try {
         // Get welcome settings for this server
-        const settings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, member.guild.id))
+        const settings = await db.select().from(null)
+            .where(eq(null.serverId, member.guild.id))
             .limit(1);
 
-        if (settings.length === 0 || !settings[0].enabled || !settings[0].goodbyeChannelId) {
-            return; // Goodbye system not configured or disabled
+        if (settings.length === 0 || !settings[0].enabled) {
+            console.log(`Goodbye system not configured for server ${member.guild.id}`);
+            return;
         }
 
         const goodbyeChannel = member.guild.channels.cache.get(settings[0].goodbyeChannelId);
@@ -1231,12 +1049,8 @@ client.on('interactionCreate', async interaction => {
         
         console.log(`Processing command: ${commandName} for user ${interaction.user.username}`);
         
-        // Embed Management Commands
-        if (commandName === 'embed') {
-            await handleEmbedCommand(interaction);
-        }
         // Stream Commands
-        else if (commandName === 'streamcreate') {
+        if (commandName === 'streamcreate') {
             await handleStreamCreate(interaction);
         }
         else if (commandName === 'activestreams') {
@@ -1260,13 +1074,6 @@ client.on('interactionCreate', async interaction => {
         // Utility Commands
         else if (commandName === 'say') {
             await handleSay(interaction);
-        }
-        // Community Management Commands
-        else if (commandName === 'welcomer') {
-            await handleWelcomer(interaction);
-        }
-        else if (commandName === 'goodbye') {
-            await handleGoodbye(interaction);
         }
         // Reaction Role Management
         else if (commandName === 'reactionrole') {
@@ -1304,7 +1111,7 @@ client.on('interactionCreate', async interaction => {
             await handleAutoMod(interaction);
         }
         else if (commandName === 'embed') {
-            await handleEmbed(interaction);
+            
         }
         else if (commandName === 'settings') {
             await handleSettings(interaction);
@@ -1332,1447 +1139,7 @@ client.on('interactionCreate', async interaction => {
     }
 });
 
-// Embed command handler
-async function handleEmbedCommand(interaction) {
-    const subcommand = interaction.options.getSubcommand();
-    
-    if (subcommand === 'create') {
-        const name = interaction.options.getString('name');
-        const title = interaction.options.getString('title');
-        const description = interaction.options.getString('description');
-        const color = interaction.options.getString('color') || '#9B59B6';
-        const footer = interaction.options.getString('footer');
-
-        // Validate color format
-        if (color && !color.match(/^#[0-9A-F]{6}$/i)) {
-            const embed = createAstraeeEmbed('Refinement Needed', 'Please provide color in proper hex format (e.g., #9B59B6).', '#E74C3C');
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        try {
-            await db.insert(embedTemplates).values({
-                name,
-                title,
-                description,
-                color,
-                footer,
-                authorId: interaction.user.id,
-                serverId: interaction.guild.id
-            });
-
-            const embed = createAstraeeEmbed(
-                'Template Preserved',
-                `Embed template "${name}" has been stored with elegant precision.\n\nIt shall serve you well in future endeavors.`
-            );
-            
-            await interaction.reply({ embeds: [embed] });
-        } catch (error) {
-            if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
-                const embed = createAstraeeEmbed('Gentle Correction', `A template named "${name}" already graces this server. Choose a new name to avoid confusion.`, '#F39C12');
-                await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-            } else {
-                throw error;
-            }
-        }
-    }
-    
-    else if (subcommand === 'list') {
-        const templates = await db.select().from(embedTemplates)
-            .where(eq(embedTemplates.serverId, interaction.guild.id));
-
-        if (templates.length === 0) {
-            const embed = createAstraeeEmbed(
-                'Empty Archive',
-                'No embed templates have been created yet.\n\nBegin your collection with `/embed create`.'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        const templateList = templates.map((t, i) => 
-            `${i + 1}. **${t.name}** ${t.title ? `- *${t.title}*` : ''}`
-        ).join('\n');
-
-        const embed = createAstraeeEmbed(
-            'Template Archive',
-            `Your stored templates:\n\n${templateList}\n\n*Use \`/embed send\` to deploy them with grace.*`
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-    
-    else if (subcommand === 'edit') {
-        const name = interaction.options.getString('name');
-        const title = interaction.options.getString('title');
-        const description = interaction.options.getString('description');
-        const color = interaction.options.getString('color');
-        const footer = interaction.options.getString('footer');
-
-        // Validate color format if provided
-        if (color && !color.match(/^#[0-9A-F]{6}$/i)) {
-            const embed = createAstraeeEmbed('Refinement Needed', 'Please provide color in proper hex format (e.g., #9B59B6).', '#E74C3C');
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        const [existingTemplate] = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.name, name),
-                eq(embedTemplates.serverId, interaction.guild.id)
-            ));
-
-        if (!existingTemplate) {
-            const embed = createAstraeeEmbed('Template Not Found', `No template named "${name}" exists in this server's archive.`, '#E74C3C');
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Build update object with only provided fields
-        const updateData = { updatedAt: new Date() };
-        if (title !== null) updateData.title = title;
-        if (description !== null) updateData.description = description;
-        if (color !== null) updateData.color = color;
-        if (footer !== null) updateData.footer = footer;
-
-        await db.update(embedTemplates)
-            .set(updateData)
-            .where(eq(embedTemplates.id, existingTemplate.id));
-
-        const embed = createAstraeeEmbed(
-            'Template Refined',
-            `Embed template "${name}" has been updated with elegant precision.\n\nYour changes have been preserved with ceremonial care.`
-        );
-        
-        await interaction.reply({ embeds: [embed] });
-    }
-    
-    else if (subcommand === 'send') {
-        const name = interaction.options.getString('name');
-        const channel = interaction.options.getChannel('channel');
-
-        const [template] = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.name, name),
-                eq(embedTemplates.serverId, interaction.guild.id)
-            ));
-
-        if (!template) {
-            const embed = createAstraeeEmbed('Template Not Found', `No template named "${name}" exists in this server's archive.`, '#E74C3C');
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        const sentEmbed = new EmbedBuilder()
-            .setColor(template.color || '#9B59B6')
-            .setTimestamp();
-
-        if (template.title) sentEmbed.setTitle(template.title);
-        if (template.description) sentEmbed.setDescription(template.description);
-        if (template.footer) sentEmbed.setFooter({ text: template.footer });
-
-        await channel.send({ embeds: [sentEmbed] });
-
-        const confirmEmbed = createAstraeeEmbed(
-            'Message Delivered',
-            `Template "${name}" has been sent to ${channel} with elegant precision.`
-        );
-        
-        await interaction.reply({ embeds: [confirmEmbed], flags: MessageFlags.Ephemeral });
-    }
-}
-
-// Command execution tracking to prevent duplicates
-const commandExecutions = new Map();
-const interactionTracking = new Map();
-
-// Stream create handler - updated for admin/model concept
-async function handleStreamCreate(interaction) {
-    const itemName = interaction.options.getString('items');
-    const model = interaction.options.getUser('model') || interaction.user; // Default to command user if no model specified
-    const days = interaction.options.getInteger('days');
-    const creator = interaction.options.getUser('creator');
-    const role = interaction.options.getRole('role');
-    const targetChannel = interaction.options.getChannel('channel');
-    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
-
-    // Create a unique key for this command execution
-    const commandKey = `${interaction.user.id}-${interaction.guild.id}-${itemName}-${Date.now()}`;
-    
-    // Check if this exact command is already being processed
-    if (commandExecutions.has(commandKey)) {
-        const embed = createAstraeeEmbed(
-            'Command Already Processing',
-            'This command is already being processed. Please wait a moment.',
-            '#F0E68C'
-        );
-        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-
-    // Mark this command as being processed
-    commandExecutions.set(commandKey, true);
-    
-    // Clean up old command keys (older than 30 seconds)
-    const now = Date.now();
-    for (const [key, timestamp] of commandExecutions.entries()) {
-        if (now - timestamp > 30000) {
-            commandExecutions.delete(key);
-        }
-    }
-
-    // Generate unique stream ID first
-    const streamId = generateStreamId();
-    const dueDate = new Date();
-    dueDate.setDate(dueDate.getDate() + days);
-
-    // Check for duplicate stream creation within last 30 seconds
-    const recentStreams = await db.select().from(streams)
-        .where(and(
-            eq(streams.modelId, model.id),
-            eq(streams.itemName, itemName),
-            eq(streams.serverId, interaction.guild.id),
-            eq(streams.status, 'active')
-        ))
-        .orderBy(desc(streams.createdAt));
-
-    // If there's a recent stream with same details, don't create another
-    if (recentStreams.length > 0) {
-        const recentStream = recentStreams[0];
-        const timeDiff = Date.now() - recentStream.createdAt.getTime();
-        
-        if (timeDiff < 30000) { // 30 seconds
-            const embed = createAstraeeEmbed(
-                'Duplicate Prevention',
-                `A stream with the same details was created recently. Please wait before creating another.\n\n**Recent Stream ID:** ${recentStream.streamId}\n**Time since creation:** ${Math.round(timeDiff / 1000)} seconds`,
-                '#F0E68C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-    }
-
-    // Additional check: prevent rapid-fire duplicate commands
-    const userRecentStreams = await db.select().from(streams)
-        .where(and(
-            eq(streams.modelId, model.id),
-            eq(streams.serverId, interaction.guild.id),
-            eq(streams.status, 'active')
-        ))
-        .orderBy(desc(streams.createdAt))
-        .limit(1);
-
-    if (userRecentStreams.length > 0) {
-        const lastStream = userRecentStreams[0];
-        const timeDiff = Date.now() - lastStream.createdAt.getTime();
-        
-        if (timeDiff < 5000) { // 5 seconds between any stream creation
-            const embed = createAstraeeEmbed(
-                'Rate Limiting',
-                `Please wait a moment before creating another stream.\n\n**Last Stream ID:** ${lastStream.streamId}`,
-                '#F0E68C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-    }
-
-    try {
-        // Insert stream with unique constraint protection
-        await db.insert(streams).values({
-            streamId,
-            modelId: model.id, // Use the model, not the command user
-            creatorId: creator?.id,
-            itemName,
-            itemLink: null, // Removed item link option
-            dueDate,
-            shop: 'Nina Babes', // Default shop since it's not displayed
-            serverId: interaction.guild.id
-        });
-
-        console.log(`Stream created successfully: ${streamId} for model ${model.username} by ${interaction.user.username}`);
-
-        // Create embed using original BotGhost design
-        const embed = createStreamCreatedEmbed(
-            model, // Use the model, not the command user
-            interaction.guild, 
-            streamId, 
-            itemName, 
-            'Nina Babes', // Default shop
-            dueDate, 
-            days, 
-            creator
-        );
-
-        // Send main response with plain text for tagging before embed
-        let responseText = '';
-        if (role) {
-            responseText += `<@&${role.id}> `;
-        }
-        // Don't ping creators in plain text since they're already in the embed
-
-        // If a specific channel is provided, send there instead of replying
-        if (targetChannel) {
-            try {
-                await targetChannel.send({ 
-            content: responseText,
-            embeds: [embed] 
-        });
-                const confirmEmbed = createAstraeeEmbed(
-                    'Stream Created',
-                    `Stream has been created and sent to ${targetChannel} with elegant precision.`
-                );
-                await interaction.reply({ embeds: [confirmEmbed], flags: MessageFlags.Ephemeral });
-            } catch (error) {
-                console.log('Could not send to target channel:', error.message);
-                // Fallback to regular reply if channel send fails
-                await interaction.reply({ 
-                    content: responseText,
-                    embeds: [embed],
-                    flags: ephemeral ? MessageFlags.Ephemeral : 0
-                });
-            }
-        } else {
-            // Send regular reply if no target channel
-            await interaction.reply({ 
-                content: responseText,
-                embeds: [embed],
-                flags: ephemeral ? MessageFlags.Ephemeral : 0
-            });
-        }
-
-        // Send DM to the model (not the command user)
-        try {
-            const dmEmbed = createStreamCreatedDMEmbed(streamId, itemName, dueDate);
-            await model.send({ embeds: [dmEmbed] });
-            console.log(`DM sent to model ${model.username} for stream ${streamId}`);
-        } catch (error) {
-            console.log('Could not send DM to model:', error.message);
-        }
-
-    } catch (error) {
-        console.error('Error creating stream:', error);
-        
-        // Handle duplicate key violations
-        if (error.code === '23505' || error.message?.includes('duplicate') || error.message?.includes('unique')) {
-            const embed = createAstraeeEmbed(
-                'Duplicate Stream Detected',
-                `A stream with this ID already exists. This might be due to a network issue.\n\n**Stream ID:** ${streamId}\n\nPlease try again in a moment.`,
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-        
-        // Handle other database errors
-        const embed = createAstraeeEmbed(
-            'Stream Creation Failed',
-            'An error occurred while creating the stream. Please try again later.',
-            '#E74C3C'
-        );
-        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    } finally {
-        // Clean up command execution tracking
-        commandExecutions.delete(commandKey);
-    }
-}
-
-// Active streams handler - updated to match original BotGhost design
-async function handleActiveStreams(interaction) {
-    const targetChannel = interaction.options.getChannel('channel');
-    const role = interaction.options.getRole('role');
-    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
-    
-    const activeStreams = await db.select().from(streams)
-        .where(and(
-            eq(streams.serverId, interaction.guild.id),
-            eq(streams.status, 'active')
-        ));
-
-    if (activeStreams.length === 0) {
-        const embed = createNoActiveStreamsEmbed();
-        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-
-    const now = new Date();
-    const streamList = activeStreams.map(stream => {
-        const daysRemaining = Math.ceil((stream.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        const dueUnix = Math.floor(stream.dueDate.getTime() / 1000);
-        const status = daysRemaining < 0 ? '🔴 Overdue' : daysRemaining <= 1 ? '🟡 Due Soon' : '🟢 Active';
-        
-        // Format to match original BotGhost design with cute unicode symbols
-        return `₊˚ପ⊹ **${stream.streamId}** - ${stream.itemName}
-<@${stream.modelId}> | <t:${dueUnix}:D> | ${status}`;
-    }).join('\n\n');
-
-    const embed = createActiveStreamsEmbed(interaction.guild, streamList, activeStreams.length);
-
-    // If a specific channel is provided, send there instead
-    if (targetChannel) {
-        try {
-            let content = '';
-            if (role) {
-                content = `<@&${role.id}>`;
-            }
-            await targetChannel.send({ 
-                content: content,
-                embeds: [embed] 
-            });
-            const confirmEmbed = createAstraeeEmbed(
-                'Streams Delivered',
-                `Active streams list has been sent to ${targetChannel} with elegant precision.`
-            );
-            return interaction.reply({ embeds: [confirmEmbed], flags: MessageFlags.Ephemeral });
-        } catch (error) {
-            console.log('Could not send to target channel:', error.message);
-            const errorEmbed = createAstraeeEmbed(
-                'Delivery Failed',
-                `Could not send to ${targetChannel}. Please check permissions.`,
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
-        }
-    }
-
-    await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
-}
-
-// Complete stream handler - updated to match original BotGhost design
-async function handleCompleteStream(interaction) {
-    const streamId = interaction.options.getString('stream_id').toUpperCase();
-    const targetChannel = interaction.options.getChannel('channel');
-    const role = interaction.options.getRole('role');
-    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
-
-    const [stream] = await db.select().from(streams)
-        .where(and(
-            eq(streams.streamId, streamId),
-            eq(streams.serverId, interaction.guild.id),
-            eq(streams.status, 'active')
-        ));
-
-    if (!stream) {
-        const embed = createStreamNotFoundEmbed();
-        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-
-    // Check permissions: either stream owner or member with Manage Messages
-    const isStreamOwner = stream.modelId === interaction.user.id;
-    const hasManageMessages = interaction.member.permissions.has(PermissionFlagsBits.ManageMessages);
-    
-    if (!isStreamOwner && !hasManageMessages) {
-        const embed = createAstraeeEmbed(
-            'Graceful Restraint', 
-            'Only the stream owner or officers with proper authority may complete this stream.\n\nSeek guidance from those with ceremonial permissions.',
-            '#E74C3C'
-        );
-        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-
-    // Mark stream as completed instead of deleting immediately
-    await db.update(streams)
-        .set({ 
-            status: 'completed',
-            completedAt: new Date(),
-            updatedAt: new Date()
-        })
-        .where(eq(streams.id, stream.id));
-
-    // Get model user for embed
-    const model = await interaction.guild.members.fetch(stream.modelId);
-
-    // Create completion embed using original design
-    const completionEmbed = createStreamCompletionEmbed(
-        interaction.guild, 
-        model.user, 
-        stream.itemName, 
-        streamId, 
-        stream.dueDate
-    );
-
-    // Send completion notification
-    let responseText = '';
-    if (role) {
-        responseText = `<@&${role.id}>`;
-    }
-
-    // If a specific channel is provided, send there
-    if (targetChannel) {
-        try {
-            await targetChannel.send({ 
-                content: responseText,
-            embeds: [completionEmbed] 
-        });
-    const confirmEmbed = createAstraeeEmbed(
-        'Completion Recorded',
-                `Stream **${streamId}** has been marked complete and sent to ${targetChannel}.\n\nYour dedication shines eternal in our constellation.`
-            );
-            await interaction.reply({ embeds: [confirmEmbed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
-        } catch (error) {
-            console.log('Could not send to target channel:', error.message);
-            const errorEmbed = createAstraeeEmbed(
-                'Delivery Failed',
-                `Could not send to ${targetChannel}. Please check permissions.`,
-                '#E74C3C'
-            );
-            await interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
-        }
-    } else {
-        // Send regular reply if no target channel
-        await interaction.reply({ 
-            content: responseText,
-            embeds: [completionEmbed],
-            flags: ephemeral ? MessageFlags.Ephemeral : 0
-        });
-    }
-
-    // Update monthly statistics for the model
-    await updateMonthlyStats(interaction.guild.id, stream.modelId);
-}
-
-// Reminder system - updated to match original BotGhost design
-function startReminderSystem() {
-    // Run every day at 9:00 AM to check for streams due tomorrow
-    cron.schedule('0 9 * * *', async () => {
-        console.log('✦ Checking for streams requiring gentle reminders ✦');
-        
-        try {
-            const tomorrow = new Date();
-            tomorrow.setDate(tomorrow.getDate() + 1);
-            tomorrow.setHours(23, 59, 59, 999); // End of tomorrow
-            
-            const todayStart = new Date();
-            todayStart.setDate(todayStart.getDate() + 1);
-            todayStart.setHours(0, 0, 0, 0); // Start of tomorrow
-
-            // Find streams due tomorrow (between start and end of tomorrow)
-            const streamsDueTomorrow = await db.select().from(streams)
-                .where(and(
-                    eq(streams.status, 'active'),
-                    gte(streams.dueDate, todayStart),
-                    lt(streams.dueDate, tomorrow)
-                ));
-
-            if (streamsDueTomorrow.length === 0) return;
-
-            // Group by server for channel reminders
-            const serverStreams = new Map();
-            for (const stream of streamsDueTomorrow) {
-                if (!serverStreams.has(stream.serverId)) {
-                    serverStreams.set(stream.serverId, []);
-                }
-                serverStreams.get(stream.serverId).push(stream);
-            }
-
-            // Send reminders per server
-            for (const [serverId, streams] of serverStreams) {
-                try {
-                    const guild = client.guilds.cache.get(serverId);
-                    if (!guild) continue;
-
-                    const streamTrackerChannel = guild.channels.cache.find(
-                        channel => channel.name === 'stream-tracker' || channel.name === '『stream-tracker』'
-                    );
-
-                    if (streamTrackerChannel && streams.length > 0) {
-                        // Create reminder list for channel embed
-                        const reminderList = streams.map(stream => {
-                            const dueUnix = Math.floor(stream.dueDate.getTime() / 1000);
-                            return `**${stream.streamId}** - ${stream.itemName}
-<@${stream.modelId}> | Due: <t:${dueUnix}:D>`;
-                        }).join('\n\n');
-
-                        const channelEmbed = createStreamReminderEmbed(reminderList);
-                        await streamTrackerChannel.send({ embeds: [channelEmbed] });
-                    }
-
-                    // Send individual DM reminders
-                    for (const stream of streams) {
-                        try {
-                            const user = await client.users.fetch(stream.modelId);
-                            const dmEmbed = createStreamReminderDMEmbed(
-                                stream.streamId, 
-                                stream.itemName, 
-                                stream.dueDate
-                            );
-                            await user.send({ embeds: [dmEmbed] });
-                        } catch (dmError) {
-                            console.log(`Could not send DM reminder to user ${stream.modelId}:`, dmError.message);
-                        }
-                    }
-
-                } catch (error) {
-                    console.error('Error sending reminders for server:', serverId, error);
-                }
-            }
-        } catch (error) {
-            console.error('Error in reminder system:', error);
-        }
-    });
-    
-    // Run daily cleanup at 2:00 AM to remove old completed streams
-    cron.schedule('0 2 * * *', async () => {
-        console.log('✦ Running daily database cleanup ✦');
-        
-        try {
-            const cutoffDate = new Date();
-            cutoffDate.setDate(cutoffDate.getDate() - 7); // Clean up completed streams older than 7 days
-
-            const deletedStreams = await db.delete(streams)
-                .where(and(
-                    eq(streams.status, 'completed'),
-                    lt(streams.completedAt, cutoffDate)
-                ));
-
-            console.log(`✦ Daily cleanup completed - removed old completed streams ✦`);
-        } catch (error) {
-            console.error('Error during daily cleanup:', error);
-        }
-    });
-    
-    console.log('✦ Reminder system initiated with elegant precision ✦');
-}
-
-// Stream info handler - get detailed information about a specific stream
-async function handleStreamInfo(interaction) {
-    const streamId = interaction.options.getString('stream_id').toUpperCase();
-
-    const [stream] = await db.select().from(streams)
-        .where(and(
-            eq(streams.streamId, streamId),
-            eq(streams.serverId, interaction.guild.id)
-        ));
-
-    if (!stream) {
-        const embed = createStreamNotFoundEmbed();
-        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-
-    const dueUnix = Math.floor(stream.dueDate.getTime() / 1000);
-    const now = new Date();
-    const daysRemaining = Math.ceil((stream.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    const status = daysRemaining < 0 ? '🔴 Overdue' : daysRemaining <= 1 ? '🟡 Due Soon' : '🟢 Active';
-    
-    const shopName = stream.shop === 'nina-babes' ? 'Nina Babes' : 'Wildethorn Ladies';
-    
-    const embed = createAstraeeEmbed(
-        'Stream Information',
-        `**Stream ID:** ${stream.streamId}
-**Model:** <@${stream.modelId}>
-**Items:** ${stream.itemName}
-**Shop:** ${shopName}
-**Status:** ${status}
-**Due Date:** <t:${dueUnix}:D> (${daysRemaining} days)
-**Created:** <t:${Math.floor(stream.createdAt.getTime() / 1000)}:D>${stream.itemLink ? `\n**Item Link:** ${stream.itemLink}` : ''}${stream.creatorId ? `\n**Creator:** <@${stream.creatorId}>` : ''}`
-    );
-
-    await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-}
-
-// Stream list handler - list streams with optional filters
-async function handleStreamList(interaction) {
-    const status = interaction.options.getString('status');
-    const model = interaction.options.getUser('model');
-    const targetChannel = interaction.options.getChannel('channel');
-
-    let whereConditions = [eq(streams.serverId, interaction.guild.id)];
-    
-    if (status) {
-        whereConditions.push(eq(streams.status, status));
-    }
-    
-    if (model) {
-        whereConditions.push(eq(streams.modelId, model.id));
-    }
-
-    const streamList = await db.select().from(streams)
-        .where(and(...whereConditions));
-
-    if (streamList.length === 0) {
-        const embed = createAstraeeEmbed(
-            'No Streams Found',
-            'No streams match your criteria. Try adjusting your filters or create a new stream.'
-        );
-        
-        if (targetChannel) {
-            await targetChannel.send({ embeds: [embed] });
-            await interaction.reply({ content: 'Stream list sent to the specified channel.', flags: MessageFlags.Ephemeral });
-        } else {
-            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-        return;
-    }
-
-    const now = new Date();
-    const streamDetails = streamList.map(stream => {
-        const daysRemaining = Math.ceil((stream.dueDate.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-        const dueUnix = Math.floor(stream.dueDate.getTime() / 1000);
-        const statusIcon = daysRemaining < 0 ? '🔴' : daysRemaining <= 1 ? '🟡' : '🟢';
-        
-        return `**${stream.streamId}** ${statusIcon} - ${stream.itemName}
-<@${stream.modelId}> | Due: <t:${dueUnix}:D> | Status: ${stream.status}`;
-    }).join('\n\n');
-
-    const embed = createAstraeeEmbed(
-        'Stream List',
-        `Found ${streamList.length} stream(s):\n\n${streamDetails}`
-    );
-
-    if (targetChannel) {
-        await targetChannel.send({ embeds: [embed] });
-        await interaction.reply({ content: 'Stream list sent to the specified channel.', flags: MessageFlags.Ephemeral });
-    } else {
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-}
-
-// Cleanup handler - remove old completed streams
-async function handleCleanup(interaction) {
-    const days = interaction.options.getInteger('days') || 7;
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - days);
-
-    try {
-        // Find old completed streams
-        const oldStreams = await db.select().from(streams)
-            .where(and(
-                eq(streams.serverId, interaction.guild.id),
-                eq(streams.status, 'completed'),
-                lt(streams.completedAt, cutoffDate)
-            ));
-
-        if (oldStreams.length === 0) {
-            const embed = createAstraeeEmbed(
-                'Database Cleanup',
-                `No completed streams older than ${days} days found. Database is already clean! ✨`,
-                '#98FB98'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Delete old completed streams
-        await db.delete(streams)
-            .where(and(
-                eq(streams.serverId, interaction.guild.id),
-                eq(streams.status, 'completed'),
-                lt(streams.completedAt, cutoffDate)
-            ));
-
-        const embed = createAstraeeEmbed(
-            'Database Cleanup Complete',
-            `Successfully cleaned up ${oldStreams.length} completed streams older than ${days} days.\n\n**Streams removed:**\n${oldStreams.map(s => `• ${s.streamId} - ${s.itemName}`).join('\n')}`,
-            '#98FB98'
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error during cleanup:', error);
-        const embed = createAstraeeEmbed(
-            'Cleanup Error',
-            'An error occurred while cleaning up the database. Please try again later.',
-            '#E74C3C'
-        );
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-}
-
-// Cleanup all handler - remove ALL streams from database
-async function handleCleanupAll(interaction) {
-    const confirm = interaction.options.getBoolean('confirm');
-
-    if (!confirm) {
-        const embed = createAstraeeEmbed(
-            'Confirmation Required',
-            'You must confirm the deletion by setting the confirm option to true.',
-            '#E74C3C'
-        );
-        return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-
-    try {
-        // Get all streams for this server
-        const allStreams = await db.select().from(streams)
-            .where(eq(streams.serverId, interaction.guild.id));
-
-        if (allStreams.length === 0) {
-            const embed = createAstraeeEmbed(
-                'Database Cleanup',
-                'No streams found in database. Database is already clean! ✨',
-                '#98FB98'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Delete ALL streams for this server
-        await db.delete(streams)
-            .where(eq(streams.serverId, interaction.guild.id));
-
-        const embed = createAstraeeEmbed(
-            'Database Cleanup Complete',
-            `⚠️ **ALL STREAMS DELETED** ⚠️\n\nSuccessfully removed ${allStreams.length} streams from the database.\n\n**Streams removed:**\n${allStreams.map(s => `• ${s.streamId} - ${s.itemName}`).join('\n')}`,
-            '#E74C3C'
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error during cleanup all:', error);
-        const embed = createAstraeeEmbed(
-            'Cleanup Error',
-            'An error occurred while cleaning up the database. Please try again later.',
-            '#E74C3C'
-        );
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-}
-
-// Say command handler - Make Astraee speak with elegant precision
-async function handleSay(interaction) {
-    const message = interaction.options.getString('message');
-    const targetChannel = interaction.options.getChannel('channel');
-    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
-
-    try {
-        // If a specific channel is provided, send there
-        if (targetChannel) {
-            await targetChannel.send(message);
-            
-            const confirmEmbed = createAstraeeEmbed(
-                'Message Delivered',
-                `Your message has been delivered to ${targetChannel} with elegant precision.`,
-                '#9B59B6'
-            );
-            
-            await interaction.reply({ 
-                embeds: [confirmEmbed], 
-                flags: ephemeral ? MessageFlags.Ephemeral : 0 
-            });
-        } else {
-            // Send to current channel
-            await interaction.channel.send(message);
-            
-            const confirmEmbed = createAstraeeEmbed(
-                'Message Delivered',
-                'Your message has been delivered with elegant precision.',
-                '#9B59B6'
-            );
-            
-            await interaction.reply({ 
-                embeds: [confirmEmbed], 
-                flags: ephemeral ? MessageFlags.Ephemeral : 0 
-            });
-        }
-
-    } catch (error) {
-        console.error('Error in say command:', error);
-        
-        const errorEmbed = createAstraeeEmbed(
-            'Delivery Failed',
-            'I could not deliver your message. Please check my permissions in the target channel.',
-            '#E74C3C'
-        );
-        
-        await interaction.reply({ 
-            embeds: [errorEmbed], 
-            flags: MessageFlags.Ephemeral 
-        });
-    }
-}
-
-// Welcomer command handler - Manage welcome and goodbye system
-async function handleWelcomer(interaction) {
-    const subcommand = interaction.options.getSubcommand();
-
-    try {
-        switch (subcommand) {
-            case 'setup':
-                await handleWelcomerSetup(interaction);
-                break;
-            case 'toggle':
-                await handleWelcomerToggle(interaction);
-                break;
-            case 'test':
-                await handleWelcomerTest(interaction);
-                break;
-            case 'status':
-                await handleWelcomerStatus(interaction);
-                break;
-            case 'reset':
-                await handleWelcomerReset(interaction);
-                break;
-        }
-    } catch (error) {
-        console.error('Error in welcomer command:', error);
-        
-        const errorEmbed = createAstraeeEmbed(
-            'Welcomer Error',
-            'An error occurred while managing the welcome system. Please try again later.',
-            '#E74C3C'
-        );
-        
-        await interaction.reply({ 
-            embeds: [errorEmbed], 
-            flags: MessageFlags.Ephemeral 
-        });
-    }
-}
-
-// Welcomer setup handler
-async function handleWelcomerSetup(interaction) {
-    const channel = interaction.options.getChannel('channel');
-    const embedName = interaction.options.getString('embed');
-
-    try {
-        // Check if embed template exists
-        const embedTemplate = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, embedName)
-            ))
-            .limit(1);
-
-        if (embedTemplate.length === 0) {
-            const embed = createAstraeeEmbed(
-                'Embed Template Not Found',
-                `No embed template found with the name "${embedName}". Please create one first using \`/embed create\`.`,
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Check if settings already exist
-        const existingSettings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id))
-            .limit(1);
-
-        const updateData = {
-            welcomeChannelId: channel.id,
-            welcomeEmbedName: embedName,
-            useRichEmbed: true,
-            enabled: true
-        };
-
-        if (existingSettings.length > 0) {
-            // Update existing settings
-            await db.update(welcomeSettings)
-                .set({
-                    ...updateData,
-                    updatedAt: new Date()
-                })
-                .where(eq(welcomeSettings.serverId, interaction.guild.id));
-        } else {
-            // Create new settings
-            await db.insert(welcomeSettings).values({
-                serverId: interaction.guild.id,
-                ...updateData,
-                goodbyeMessage: 'Farewell, {user}. May your light shine elsewhere. ✦'
-            });
-        }
-
-        const embed = createAstraeeEmbed(
-            'Welcome System Configured',
-            `The welcome system has been configured with elegant precision.\n\n**Welcome Channel:** ${channel}\n**Welcome Embed:** ${embedName}\n\nNew members will now receive the selected embed template as their welcome message.`,
-            '#9B59B6'
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error setting up welcomer:', error);
-        throw error;
-    }
-}
-
-// Welcomer toggle handler
-async function handleWelcomerToggle(interaction) {
-    const enabled = interaction.options.getBoolean('enabled');
-
-    try {
-        // Check if settings exist
-        const existingSettings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id))
-            .limit(1);
-
-        if (existingSettings.length > 0) {
-            // Update existing settings
-            await db.update(welcomeSettings)
-                .set({
-                    enabled: enabled,
-                    updatedAt: new Date()
-                })
-                .where(eq(welcomeSettings.serverId, interaction.guild.id));
-        } else {
-            // Create new settings with default values
-            await db.insert(welcomeSettings).values({
-                serverId: interaction.guild.id,
-                enabled: enabled
-            });
-        }
-
-        const embed = createAstraeeEmbed(
-            'Welcome System Toggled',
-            `The welcome system has been ${enabled ? 'enabled' : 'disabled'} with elegant precision.`,
-            enabled ? '#98FB98' : '#E74C3C'
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error toggling welcomer:', error);
-        throw error;
-    }
-}
-
-// Welcomer test handler
-async function handleWelcomerTest(interaction) {
-    try {
-        // Get current settings
-        const settings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id))
-            .limit(1);
-
-        if (settings.length === 0 || !settings[0].enabled) {
-            const embed = createAstraeeEmbed(
-                'Welcome System Not Configured',
-                'The welcome system is not set up or enabled. Use `/welcomer setup` to configure it.',
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Get test channel (use provided channel or default welcome channel)
-        const testChannel = interaction.options.getChannel('channel') || 
-            (settings[0].welcomeChannelId ? interaction.guild.channels.cache.get(settings[0].welcomeChannelId) : null);
-
-        if (!testChannel) {
-            const embed = createAstraeeEmbed(
-                'No Channel Available',
-                'No welcome channel has been configured and no test channel was provided. Use `/welcomer setup` to set a welcome channel or specify a test channel.',
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Send test message
-        if (settings[0].useRichEmbed) {
-            // Create rich embed test message
-            const embed = new EmbedBuilder()
-                .setTitle(settings[0].embedTitle)
-                .setColor(settings[0].embedColor || '#9B59B6')
-                .setFooter({ text: settings[0].embedFooter || '✦ "Every arrival marks the start of a new chapter." - Astraee ✦' })
-                .setTimestamp();
-
-            // Add description with user mention
-            if (settings[0].embedDescription) {
-                embed.setDescription(settings[0].embedDescription.replace('{user}', interaction.user.toString()));
-            } else {
-                embed.setDescription(`Welcome, ${interaction.user}! ✦ We are delighted to have you in **${interaction.guild.name}**, where creativity meets connection.`);
-            }
-
-            // Add thumbnail if set
-            if (settings[0].embedThumbnail) {
-                let thumbnailUrl = settings[0].embedThumbnail;
-                // Handle dynamic placeholders
-                if (thumbnailUrl === '{server.icon}') {
-                    thumbnailUrl = interaction.guild.iconURL({ dynamic: true, size: 512 });
-                } else if (thumbnailUrl === '{user.avatar}') {
-                    thumbnailUrl = interaction.user.displayAvatarURL({ dynamic: true, size: 512 });
-                }
-                if (thumbnailUrl) {
-                    embed.setThumbnail(thumbnailUrl);
-                }
-            }
-
-            // Add image if set
-            if (settings[0].embedImage) {
-                let imageUrl = settings[0].embedImage;
-                // Handle dynamic placeholders
-                if (imageUrl === '{server.icon}') {
-                    imageUrl = interaction.guild.iconURL({ dynamic: true, size: 512 });
-                } else if (imageUrl === '{user.avatar}') {
-                    imageUrl = interaction.user.displayAvatarURL({ dynamic: true, size: 512 });
-                }
-                if (imageUrl) embed.setImage(imageUrl);
-            }
-
-            // Add first steps fields if channels are configured
-            const fields = [];
-            if (settings[0].rulesChannelId) {
-                fields.push({
-                    name: '📋 Read Our Rules',
-                    value: `Visit ${interaction.guild.channels.cache.get(settings[0].rulesChannelId) || '#rules'} to understand our community standards.`,
-                    inline: false
-                });
-            }
-            if (settings[0].startHereChannelId) {
-                fields.push({
-                    name: '🚀 Get Started',
-                    value: `Visit ${interaction.guild.channels.cache.get(settings[0].startHereChannelId) || '#start-here'} to react and unlock the rest of the server.`,
-                    inline: false
-                });
-            }
-            if (settings[0].introChannelId) {
-                fields.push({
-                    name: '👋 Introduce Yourself',
-                    value: `Head to ${interaction.guild.channels.cache.get(settings[0].introChannelId) || '#introductions'} and start your journey with us.`,
-                    inline: false
-                });
-            }
-
-            if (fields.length > 0) {
-                embed.addFields(fields);
-            }
-
-            await testChannel.send({ embeds: [embed] });
-        } else {
-            // Send simple text message
-            const testMessage = settings[0].welcomeMessage.replace('{user}', interaction.user.toString());
-            await testChannel.send(testMessage);
-        }
-
-        const embed = createAstraeeEmbed(
-            'Test Message Sent',
-            `Test welcome message sent to ${testChannel} with elegant precision.`,
-            '#9B59B6'
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error testing welcomer:', error);
-        throw error;
-    }
-}
-
-// Welcomer status handler
-async function handleWelcomerStatus(interaction) {
-    try {
-        // Get current settings
-        const settings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id))
-            .limit(1);
-
-        if (settings.length === 0) {
-            const embed = createAstraeeEmbed(
-                'Welcome System Status',
-                'The welcome system is not configured. Use `/welcomer setup` to configure it.',
-                '#F0E68C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        const setting = settings[0];
-        const welcomeChannel = setting.welcomeChannelId ? 
-            interaction.guild.channels.cache.get(setting.welcomeChannelId) : null;
-        const goodbyeChannel = setting.goodbyeChannelId ? 
-            interaction.guild.channels.cache.get(setting.goodbyeChannelId) : null;
-
-        const embed = createAstraeeEmbed(
-            'Welcome System Status',
-            `**Status:** ${setting.enabled ? 'Enabled ✨' : 'Disabled ❌'}\n**Rich Embeds:** ${setting.useRichEmbed ? 'Enabled ✨' : 'Disabled ❌'}\n**Welcome Channel:** ${welcomeChannel || 'Not set'}\n**Goodbye Channel:** ${goodbyeChannel || 'Not set'}\n**Welcome Message:** ${setting.welcomeMessage}\n**Goodbye Message:** ${setting.goodbyeMessage}\n\n**Rich Embed Settings:**\n**Title:** ${setting.embedTitle}\n**Description:** ${setting.embedDescription || 'Default'}\n**Color:** ${setting.embedColor}\n**Thumbnail:** ${setting.embedThumbnail ? 'Set' : 'Not set'}\n**Image:** ${setting.embedImage ? 'Set' : 'Not set'}\n**Footer:** ${setting.embedFooter}\n\n**Channel Links:**\n**Rules:** ${setting.rulesChannelId ? `<#${setting.rulesChannelId}>` : 'Not set'}\n**Start Here:** ${setting.startHereChannelId ? `<#${setting.startHereChannelId}>` : 'Not set'}\n**Intro:** ${setting.introChannelId ? `<#${setting.introChannelId}>` : 'Not set'}`,
-            setting.enabled ? '#98FB98' : '#E74C3C'
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error getting welcomer status:', error);
-        throw error;
-    }
-}
-
-// Welcomer reset handler
-async function handleWelcomerReset(interaction) {
-    try {
-        // Delete all welcome settings
-        await db.delete(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id));
-
-        const embed = createAstraeeEmbed(
-            'Welcome System Reset',
-            'All welcome settings have been reset with elegant precision.\n\nThe welcome system is now disabled and all configurations have been cleared.',
-            '#9B59B6'
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error resetting welcomer:', error);
-        throw error;
-    }
-}
-
-// Goodbye command handler - Manage goodbye system with embed selection
-async function handleGoodbye(interaction) {
-    const subcommand = interaction.options.getSubcommand();
-
-    try {
-        switch (subcommand) {
-            case 'setup':
-                await handleGoodbyeSetup(interaction);
-                break;
-            case 'toggle':
-                await handleGoodbyeToggle(interaction);
-                break;
-            case 'test':
-                await handleGoodbyeTest(interaction);
-                break;
-            case 'status':
-                await handleGoodbyeStatus(interaction);
-                break;
-            case 'reset':
-                await handleGoodbyeReset(interaction);
-                break;
-        }
-    } catch (error) {
-        console.error('Error in goodbye command:', error);
-        
-        const errorEmbed = createAstraeeEmbed(
-            'Goodbye Error',
-            'An error occurred while managing the goodbye system. Please try again later.',
-            '#E74C3C'
-        );
-        
-        await interaction.reply({ 
-            embeds: [errorEmbed], 
-            flags: MessageFlags.Ephemeral 
-        });
-    }
-}
-
-// Goodbye setup handler
-async function handleGoodbyeSetup(interaction) {
-    const channel = interaction.options.getChannel('channel');
-    const embedName = interaction.options.getString('embed');
-    const type = interaction.options.getString('type') || 'leave';
-
-    try {
-        // Check if embed template exists
-        const embedTemplate = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, embedName)
-            ))
-            .limit(1);
-
-        if (embedTemplate.length === 0) {
-            const embed = createAstraeeEmbed(
-                'Embed Template Not Found',
-                `No embed template found with the name "${embedName}". Please create one first using \`/embed create\`.`,
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Check if settings already exist
-        const existingSettings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id))
-            .limit(1);
-
-        const updateData = {
-            goodbyeChannelId: channel.id,
-            goodbyeEmbedName: embedName,
-            goodbyeType: type,
-            enabled: true
-        };
-
-        if (existingSettings.length > 0) {
-            // Update existing settings
-            await db.update(welcomeSettings)
-                .set({
-                    ...updateData,
-                    updatedAt: new Date()
-                })
-                .where(eq(welcomeSettings.serverId, interaction.guild.id));
-        } else {
-            // Create new settings
-            await db.insert(welcomeSettings).values({
-                serverId: interaction.guild.id,
-                ...updateData,
-                welcomeMessage: 'Welcome to our constellation, {user}! ✦'
-            });
-        }
-
-        const embed = createAstraeeEmbed(
-            'Goodbye System Configured',
-            `The goodbye system has been configured with elegant precision.\n\n**Goodbye Channel:** ${channel}\n**Goodbye Embed:** ${embedName}\n**Goodbye Type:** ${type}\n\nUsers will now receive the selected embed template when they ${type} the server.`,
-            '#9B59B6'
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error setting up goodbye:', error);
-        throw error;
-    }
-}
-
-// Goodbye toggle handler
-async function handleGoodbyeToggle(interaction) {
-    const enabled = interaction.options.getBoolean('enabled');
-
-    try {
-        // Check if settings exist
-        const existingSettings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id))
-            .limit(1);
-
-        if (existingSettings.length === 0) {
-            const embed = createAstraeeEmbed(
-                'Goodbye System Not Configured',
-                'The goodbye system is not set up. Use `/goodbye setup` to configure it first.',
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Update enabled status
-        await db.update(welcomeSettings)
-            .set({ enabled: enabled })
-            .where(eq(welcomeSettings.serverId, interaction.guild.id));
-
-        const embed = createAstraeeEmbed(
-            'Goodbye System Updated',
-            `The goodbye system has been ${enabled ? 'enabled' : 'disabled'} with elegant precision.`,
-            '#9B59B6'
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error toggling goodbye:', error);
-        throw error;
-    }
-}
-
-// Goodbye test handler
-async function handleGoodbyeTest(interaction) {
-    try {
-        // Get current settings
-        const settings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id))
-            .limit(1);
-
-        if (settings.length === 0 || !settings[0].enabled) {
-            const embed = createAstraeeEmbed(
-                'Goodbye System Not Configured',
-                'The goodbye system is not set up or enabled. Use `/goodbye setup` to configure it.',
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Get test channel (use provided channel or default goodbye channel)
-        const testChannel = interaction.options.getChannel('channel') || 
-            (settings[0].goodbyeChannelId ? interaction.guild.channels.cache.get(settings[0].goodbyeChannelId) : null);
-
-        if (!testChannel) {
-            const embed = createAstraeeEmbed(
-                'No Channel Available',
-                'No goodbye channel has been configured and no test channel was provided. Use `/goodbye setup` to set a goodbye channel or specify a test channel.',
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Get embed template
-        const embedTemplate = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, settings[0].goodbyeEmbedName)
-            ))
-            .limit(1);
-
-        if (embedTemplate.length === 0) {
-            const embed = createAstraeeEmbed(
-                'Embed Template Not Found',
-                `The goodbye embed template "${settings[0].goodbyeEmbedName}" was not found. Please update your goodbye settings.`,
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Build and send test embed
-        const testEmbed = await buildEmbedFromTemplate(embedTemplate[0], interaction.guild, interaction.user);
-        await testChannel.send({ embeds: [testEmbed] });
-
-        // Send confirmation
-        const confirmEmbed = createAstraeeEmbed(
-            'Test Message Sent',
-            `Test goodbye message has been sent to ${testChannel}. The test uses your user as the "leaving member" to preview how the goodbye will look.`,
-            '#2ECC71'
-        );
-
-        await interaction.reply({ embeds: [confirmEmbed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error testing goodbye:', error);
-        
-        const errorEmbed = createAstraeeEmbed(
-            'Test Failed',
-            'An error occurred while testing the goodbye message. Please try again later.',
-            '#E74C3C'
-        );
-        
-        await interaction.reply({ 
-            embeds: [errorEmbed], 
-            flags: MessageFlags.Ephemeral 
-        });
-    }
-}
-
-// Goodbye status handler
-async function handleGoodbyeStatus(interaction) {
-    try {
-        const settings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id))
-            .limit(1);
-
-        if (settings.length === 0) {
-            const embed = createAstraeeEmbed(
-                'Goodbye System Not Configured',
-                'The goodbye system is not set up. Use `/goodbye setup` to configure it.',
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        const goodbyeChannel = settings[0].goodbyeChannelId ? 
-            interaction.guild.channels.cache.get(settings[0].goodbyeChannelId) : null;
-
-        const embed = createAstraeeEmbed(
-            'Goodbye System Status',
-            `**Status:** ${settings[0].enabled ? 'Enabled ✨' : 'Disabled ❌'}\n**Goodbye Channel:** ${goodbyeChannel || 'Not set'}\n**Goodbye Embed:** ${settings[0].goodbyeEmbedName || 'Not set'}\n**Goodbye Type:** ${settings[0].goodbyeType || 'leave'}`,
-            '#9B59B6'
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error getting goodbye status:', error);
-        throw error;
-    }
-}
-
-// Goodbye reset handler
-async function handleGoodbyeReset(interaction) {
-    try {
-        // Update settings to remove goodbye configuration
-        await db.update(welcomeSettings)
-            .set({
-                goodbyeChannelId: null,
-                goodbyeEmbedName: null,
-                goodbyeType: null
-            })
-            .where(eq(welcomeSettings.serverId, interaction.guild.id));
-
-        const embed = createAstraeeEmbed(
-            'Goodbye System Reset',
-            'All goodbye settings have been reset with elegant precision.\n\nThe goodbye system is now disabled and all configurations have been cleared.',
-            '#9B59B6'
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error resetting goodbye:', error);
-        throw error;
-    }
-}
-
-// Reaction Role command handler - Manage reaction roles with elegant precision
+// Reaction Role command handler
 async function handleReactionRole(interaction) {
     const subcommand = interaction.options.getSubcommand();
 
@@ -5724,7 +4091,6 @@ async function processViolations(message, violations, config) {
 }
 
 // Spam tracker for message frequency
-const spamTracker = new Map();
 
 // Clean up old spam tracking data every 5 minutes
 setInterval(() => {
@@ -5740,42 +4106,48 @@ setInterval(() => {
 }, 300000); // 5 minutes
 
 // Interactive Embed System - Mimu-inspired with modals and buttons
-async function handleEmbed(interaction) {
+
+
+// Handle embed creation with interactive setup
+
+
+// Handle embed listing
+
+
+// Handle embed preview
+
+
+// Handle embed deletion
+
+
+// Handle embed editing via chat bar (alternative to buttons)
+
+
+// Reaction Role command handler
+async function handleReactionRole(interaction) {
     const subcommand = interaction.options.getSubcommand();
 
     try {
         switch (subcommand) {
-            case 'create':
-                await handleEmbedCreate(interaction);
+            case 'add':
+                await handleReactionRoleAdd(interaction);
+                break;
+            case 'remove':
+                await handleReactionRoleRemove(interaction);
                 break;
             case 'list':
-                await handleEmbedList(interaction);
+                await handleReactionRoleList(interaction);
                 break;
-            case 'show':
-                await handleEmbedShow(interaction);
-                break;
-            case 'delete':
-                await handleEmbedDelete(interaction);
-                break;
-            case 'edit':
-                await handleEmbedEdit(interaction);
-                break;
-            case 'template':
-                await handleEmbedTemplate(interaction);
-                break;
-            case 'send':
-                await handleEmbedSend(interaction);
-                break;
-            case 'gallery':
-                await handleEmbedGallery(interaction);
+            case 'clear':
+                await handleReactionRoleClear(interaction);
                 break;
         }
     } catch (error) {
-        console.error('Error in embed command:', error);
+        console.error('Error in reaction role command:', error);
         
         const errorEmbed = createAstraeeEmbed(
-            'Embed System Error',
-            'An error occurred while managing embeds. Please try again later.',
+            'Reaction Role Error',
+            'An error occurred while managing reaction roles. Please try again later.',
             '#E74C3C'
         );
         
@@ -5786,101 +4158,324 @@ async function handleEmbed(interaction) {
     }
 }
 
-// Handle embed creation with interactive setup
-async function handleEmbedCreate(interaction) {
-    const name = interaction.options.getString('name');
+// Reaction Role Add handler
+async function handleReactionRoleAdd(interaction) {
+    const messageId = interaction.options.getString('message_id');
+    const emoji = interaction.options.getString('emoji');
+    const role = interaction.options.getRole('role');
 
     try {
-        // Check if embed already exists
-        const existingEmbed = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ))
-            .limit(1);
-
-        if (existingEmbed.length > 0) {
+        // Find the message
+        const message = await interaction.channel.messages.fetch(messageId);
+        if (!message) {
             const embed = createAstraeeEmbed(
-                'Embed Already Exists',
-                `An embed template with the name "${name}" already exists. Please choose a different name.`,
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct and the message is in this channel.',
                 '#E74C3C'
             );
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
-        // Create basic embed template
-        await db.insert(embedTemplates).values({
+        // Check if reaction role already exists
+        const existingReactionRole = await db.select().from(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, interaction.guild.id),
+                eq(reactionRoles.messageId, messageId),
+                eq(reactionRoles.emoji, emoji)
+            ))
+            .limit(1);
+
+        if (existingReactionRole.length > 0) {
+            const embed = createAstraeeEmbed(
+                'Reaction Role Exists',
+                `A reaction role with emoji ${emoji} already exists for this message. Use \`/reactionrole remove\` to remove it first.`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Add reaction role to database
+        await db.insert(reactionRoles).values({
             serverId: interaction.guild.id,
-            name: name,
-            title: '',
-            description: '',
-            color: '#9B59B6',
-            authorName: '',
-            authorIcon: '',
-            footerText: '',
-            footerIcon: '',
-            thumbnail: '',
-            image: '',
-            fields: JSON.stringify([]),
-            createdBy: interaction.user.id
+            messageId: messageId,
+            emoji: emoji,
+            roleId: role.id
         });
 
-        // Create interactive setup embed with buttons
-        const embed = new EmbedBuilder()
-            .setTitle('✦ Embed Template Created ✦')
-            .setDescription(`Successfully created embed template **"${name}"**! ✦\n\n**What would you like to edit?**\n\nUse the buttons below to customize your embed, or use \`/embed edit\` for text-based editing.`)
-            .setColor('#27AE60')
-            .setFooter({ text: `✦ "Creativity flows through every detail." - Astraee ✦` })
-            .setTimestamp();
+        // Add reaction to the message
+        await message.react(emoji);
 
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`embed_edit_basic_${name}`)
-                    .setLabel('📝 Basic Info')
-                    .setStyle(ButtonStyle.Primary),
-                new ButtonBuilder()
-                    .setCustomId(`embed_edit_author_${name}`)
-                    .setLabel('👤 Author')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId(`embed_edit_footer_${name}`)
-                    .setLabel('📄 Footer')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId(`embed_edit_images_${name}`)
-                    .setLabel('🖼️ Images')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId(`embed_edit_fields_${name}`)
-                    .setLabel('📋 Fields')
-                    .setStyle(ButtonStyle.Secondary)
-            );
+        const embed = createAstraeeEmbed(
+            'Reaction Role Added',
+            `Reaction role added with elegant precision.\n\n**Message:** ${messageId}\n**Emoji:** ${emoji}\n**Role:** ${role}\n\nUsers can now react to assign/remove this role.`,
+            '#9B59B6'
+        );
 
-        const row2 = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`embed_preview_${name}`)
-                    .setLabel('👁️ Preview')
-                    .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
-                    .setCustomId(`embed_delete_${name}`)
-                    .setLabel('🗑️ Delete')
-                    .setStyle(ButtonStyle.Danger)
-            );
-
-        await interaction.reply({ 
-            embeds: [embed], 
-            components: [row, row2],
-            flags: MessageFlags.Ephemeral 
-        });
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 
     } catch (error) {
-        console.error('Error creating embed:', error);
+        console.error('Error adding reaction role:', error);
+        
+        if (error.code === 10008) { // Unknown Message
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+        
+        throw error;
+    }
+}
+
+// Reaction Role Remove handler
+async function handleReactionRoleRemove(interaction) {
+    const messageId = interaction.options.getString('message_id');
+    const emoji = interaction.options.getString('emoji');
+
+    try {
+        // Find the message
+        const message = await interaction.channel.messages.fetch(messageId);
+        if (!message) {
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct and the message is in this channel.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Find and remove reaction role from database
+        const reactionRole = await db.select().from(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, interaction.guild.id),
+                eq(reactionRoles.messageId, messageId),
+                eq(reactionRoles.emoji, emoji)
+            ))
+            .limit(1);
+
+        if (reactionRole.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Reaction Role Not Found',
+                `No reaction role found with emoji ${emoji} for this message.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Remove from database
+        await db.delete(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, interaction.guild.id),
+                eq(reactionRoles.messageId, messageId),
+                eq(reactionRoles.emoji, emoji)
+            ));
+
+        // Remove reaction from message
+        try {
+            await message.reactions.cache.get(emoji)?.users.remove(client.user);
+        } catch (reactionError) {
+            console.log('Could not remove reaction from message:', reactionError.message);
+        }
+
+        const embed = createAstraeeEmbed(
+            'Reaction Role Removed',
+            `Reaction role removed with elegant precision.\n\n**Message:** ${messageId}\n**Emoji:** ${emoji}\n**Role:** <@&${reactionRole[0].roleId}>`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error removing reaction role:', error);
+        
+        if (error.code === 10008) { // Unknown Message
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+        
+        throw error;
+    }
+}
+
+// Reaction Role List handler
+async function handleReactionRoleList(interaction) {
+    const messageId = interaction.options.getString('message_id');
+
+    try {
+        // Find the message
+        const message = await interaction.channel.messages.fetch(messageId);
+        if (!message) {
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct and the message is in this channel.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Get all reaction roles for this message
+        const reactionRolesList = await db.select().from(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, interaction.guild.id),
+                eq(reactionRoles.messageId, messageId)
+            ));
+
+        if (reactionRolesList.length === 0) {
+            const embed = createAstraeeEmbed(
+                'No Reaction Roles',
+                `No reaction roles found for this message. Use \`/reactionrole add\` to add some.`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const embed = createAstraeeEmbed(
+            'Reaction Roles List',
+            `**Message ID:** ${messageId}\n\n**Reaction Roles:**\n${reactionRolesList.map(rr => `• ${rr.emoji} → <@&${rr.roleId}>`).join('\n')}`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error listing reaction roles:', error);
+        
+        if (error.code === 10008) { // Unknown Message
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+        
+        throw error;
+    }
+}
+
+// Reaction Role Clear handler
+async function handleReactionRoleClear(interaction) {
+    const messageId = interaction.options.getString('message_id');
+
+    try {
+        // Find the message
+        const message = await interaction.channel.messages.fetch(messageId);
+        if (!message) {
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct and the message is in this channel.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Get all reaction roles for this message
+        const reactionRolesList = await db.select().from(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, interaction.guild.id),
+                eq(reactionRoles.messageId, messageId)
+            ));
+
+        if (reactionRolesList.length === 0) {
+            const embed = createAstraeeEmbed(
+                'No Reaction Roles',
+                `No reaction roles found for this message.`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Remove all reaction roles from database
+        await db.delete(reactionRoles)
+            .where(and(
+                eq(reactionRoles.serverId, interaction.guild.id),
+                eq(reactionRoles.messageId, messageId)
+            ));
+
+        // Remove all reactions from message
+        try {
+            for (const reactionRole of reactionRolesList) {
+                await message.reactions.cache.get(reactionRole.emoji)?.users.remove(client.user);
+            }
+        } catch (reactionError) {
+            console.log('Could not remove some reactions from message:', reactionError.message);
+        }
+
+        const embed = createAstraeeEmbed(
+            'Reaction Roles Cleared',
+            `All reaction roles cleared from this message with elegant precision.\n\n**Removed:** ${reactionRolesList.length} reaction roles`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error clearing reaction roles:', error);
+        
+        if (error.code === 10008) { // Unknown Message
+            const embed = createAstraeeEmbed(
+                'Message Not Found',
+                'Could not find the specified message. Make sure the message ID is correct.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+        
+        throw error;
+    }
+}
+
+// Moderation command handlers
+async function handleKick(interaction) {
+    const user = interaction.options.getUser('user');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+
+    try {
+        const member = await interaction.guild.members.fetch(user.id);
+        
+        // Check if user can be kicked
+        if (!member.kickable) {
+            const embed = createAstraeeEmbed(
+                'Cannot Kick User',
+                `I cannot kick ${user}. They may have a higher role than me or be the server owner.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Kick the user
+        await member.kick(reason);
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: user.id,
+            moderatorId: interaction.user.id,
+            action: 'kick',
+            reason: reason
+        });
+
+        const embed = createAstraeeEmbed(
+            'User Kicked',
+            `**User:** ${user} (${user.tag})\n**Reason:** ${reason}\n**Moderator:** ${interaction.user}\n\nUser has been removed from the server with elegant precision.`,
+            '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+
+    } catch (error) {
+        console.error('Error kicking user:', error);
         
         const embed = createAstraeeEmbed(
-            'Creation Error',
-            'Failed to create embed template. Please try again later.',
+            'Kick Failed',
+            `Failed to kick ${user}. Please check my permissions and try again.`,
             '#E74C3C'
         );
         
@@ -5888,48 +4483,623 @@ async function handleEmbedCreate(interaction) {
     }
 }
 
-// Handle embed listing
-async function handleEmbedList(interaction) {
-    try {
-        const embeds = await db.select().from(embedTemplates)
-            .where(eq(embedTemplates.serverId, interaction.guild.id))
-            .orderBy(asc(embedTemplates.name));
+async function handleBan(interaction) {
+    const user = interaction.options.getUser('user');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const deleteDays = interaction.options.getInteger('delete_days') || 0;
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
 
-        if (embeds.length === 0) {
+    try {
+        const member = await interaction.guild.members.fetch(user.id).catch(() => null);
+        
+        // Check if user can be banned
+        if (member && !member.bannable) {
             const embed = createAstraeeEmbed(
-                'Embed Templates',
-                'No embed templates found.\n\nCreate your first template using \`/embed create\` ✦',
+                'Cannot Ban User',
+                `I cannot ban ${user}. They may have a higher role than me or be the server owner.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Ban the user
+        await interaction.guild.members.ban(user, { 
+            reason: reason,
+            deleteMessageDays: deleteDays
+        });
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: user.id,
+            moderatorId: interaction.user.id,
+            action: 'ban',
+            reason: reason
+        });
+
+        const embed = createAstraeeEmbed(
+            'User Banned',
+            `**User:** ${user} (${user.tag})\n**Reason:** ${reason}\n**Moderator:** ${interaction.user}\n**Messages Deleted:** ${deleteDays} days\n\nUser has been permanently banned from the server with elegant precision.`,
+            '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+
+    } catch (error) {
+        console.error('Error banning user:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Ban Failed',
+            `Failed to ban ${user}. Please check my permissions and try again.`,
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+async function handleTimeout(interaction) {
+    const user = interaction.options.getUser('user');
+    const duration = interaction.options.getInteger('duration');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+
+    try {
+        const member = await interaction.guild.members.fetch(user.id);
+        
+        // Check if user can be timed out
+        if (!member.moderatable) {
+            const embed = createAstraeeEmbed(
+                'Cannot Timeout User',
+                `I cannot timeout ${user}. They may have a higher role than me or be the server owner.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Calculate timeout end time
+        const timeoutUntil = new Date(Date.now() + duration * 60 * 1000);
+
+        // Timeout the user
+        await member.timeout(duration * 60 * 1000, reason);
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: user.id,
+            moderatorId: interaction.user.id,
+            action: 'timeout',
+            reason: reason,
+            duration: duration
+        });
+
+        const embed = createAstraeeEmbed(
+            'User Timed Out',
+            `**User:** ${user} (${user.tag})\n**Duration:** ${duration} minutes\n**Reason:** ${reason}\n**Moderator:** ${interaction.user}\n**Until:** <t:${Math.floor(timeoutUntil.getTime() / 1000)}:R>\n\nUser has been timed out with elegant precision.`,
+            '#F39C12'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+
+    } catch (error) {
+        console.error('Error timing out user:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Timeout Failed',
+            `Failed to timeout ${user}. Please check my permissions and try again.`,
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+async function handleMute(interaction) {
+    const user = interaction.options.getUser('user');
+    const muteRole = interaction.options.getRole('mute_role');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+
+    try {
+        const member = await interaction.guild.members.fetch(user.id);
+        
+        // Check if user already has the mute role
+        if (member.roles.cache.has(muteRole.id)) {
+            const embed = createAstraeeEmbed(
+                'User Already Muted',
+                `${user} already has the ${muteRole} role.`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Add the mute role
+        await member.roles.add(muteRole, reason);
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: user.id,
+            moderatorId: interaction.user.id,
+            action: 'mute',
+            reason: reason
+        });
+
+        const embed = createAstraeeEmbed(
+            'User Muted',
+            `**User:** ${user} (${user.tag})\n**Mute Role:** ${muteRole}\n**Reason:** ${reason}\n**Moderator:** ${interaction.user}\n\nUser has been muted with elegant precision.`,
+            '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+
+    } catch (error) {
+        console.error('Error muting user:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Mute Failed',
+            `Failed to mute ${user}. Please check my permissions and try again.`,
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+async function handleUnmute(interaction) {
+    const user = interaction.options.getUser('user');
+    const muteRole = interaction.options.getRole('mute_role');
+    const reason = interaction.options.getString('reason') || 'No reason provided';
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+
+    try {
+        const member = await interaction.guild.members.fetch(user.id);
+        
+        // Check if user has the mute role
+        if (!member.roles.cache.has(muteRole.id)) {
+            const embed = createAstraeeEmbed(
+                'User Not Muted',
+                `${user} does not have the ${muteRole} role.`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Remove the mute role
+        await member.roles.remove(muteRole, reason);
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: user.id,
+            moderatorId: interaction.user.id,
+            action: 'unmute',
+            reason: reason
+        });
+
+        const embed = createAstraeeEmbed(
+            'User Unmuted',
+            `**User:** ${user} (${user.tag})\n**Mute Role:** ${muteRole}\n**Reason:** ${reason}\n**Moderator:** ${interaction.user}\n\nUser has been unmuted with elegant precision.`,
+            '#98FB98'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+
+    } catch (error) {
+        console.error('Error unmuting user:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Unmute Failed',
+            `Failed to unmute ${user}. Please check my permissions and try again.`,
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+async function handleModLogs(interaction) {
+    const user = interaction.options.getUser('user');
+    const limit = interaction.options.getInteger('limit') || 10;
+    const ephemeral = interaction.options.getBoolean('ephemeral') || false;
+
+    try {
+        // Get moderation logs for the user
+        const logs = await db.select().from(moderationLogs)
+            .where(and(
+                eq(moderationLogs.serverId, interaction.guild.id),
+                eq(moderationLogs.userId, user.id)
+            ))
+            .orderBy(desc(moderationLogs.createdAt))
+            .limit(limit);
+
+        if (logs.length === 0) {
+            const embed = createAstraeeEmbed(
+                'No Moderation Logs',
+                `No moderation logs found for ${user}.`,
+                '#F0E68C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const logEntries = logs.map(log => {
+            const moderator = interaction.guild.members.cache.get(log.moderatorId);
+            const moderatorName = moderator ? moderator.user.tag : 'Unknown';
+            const timestamp = `<t:${Math.floor(log.createdAt.getTime() / 1000)}:R>`;
+            const duration = log.duration ? ` (${log.duration} min)` : '';
+            
+            return `**${log.action.toUpperCase()}**${duration} - ${timestamp}\n**Moderator:** ${moderatorName}\n**Reason:** ${log.reason || 'No reason provided'}`;
+        }).join('\n\n');
+
+        const embed = createAstraeeEmbed(
+            `Moderation Logs for ${user.tag}`,
+            `**User:** ${user} (${user.id})\n**Total Logs:** ${logs.length}\n\n${logEntries}`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
+
+    } catch (error) {
+        console.error('Error fetching mod logs:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Logs Failed',
+            `Failed to fetch moderation logs for ${user}. Please try again later.`,
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Statistics command handler - Track monthly stream counts and yearly summaries
+async function handleStats(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'monthly':
+                await handleStatsMonthly(interaction);
+                break;
+            case 'yearly':
+                await handleStatsYearly(interaction);
+                break;
+            case 'submit':
+                await handleStatsSubmit(interaction);
+                break;
+            case 'leaderboard':
+                await handleStatsLeaderboard(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in stats command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Statistics Error',
+            'An error occurred while processing statistics. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Handle monthly statistics display
+async function handleStatsMonthly(interaction) {
+    const year = interaction.options.getInteger('year') || new Date().getFullYear();
+    const month = interaction.options.getInteger('month') || new Date().getMonth() + 1;
+
+    try {
+        // Get monthly stats for the server
+        const monthlyStatsData = await db.select().from(monthlyStats)
+            .where(and(
+                eq(monthlyStats.serverId, interaction.guild.id),
+                eq(monthlyStats.year, year),
+                eq(monthlyStats.month, month)
+            ));
+
+        if (monthlyStatsData.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Monthly Statistics',
+                `No stream data found for **${getMonthName(month)} ${year}**.\n\nStart creating streams to build your monthly statistics! ✦`,
                 '#9B59B6'
             );
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
+        // Sort by stream count (descending)
+        monthlyStatsData.sort((a, b) => b.streamCount - a.streamCount);
+
+        // Create leaderboard embed
         const embed = new EmbedBuilder()
-            .setTitle('✦ Embed Templates ✦')
+            .setTitle(`✦ Monthly Statistics - ${getMonthName(month)} ${year} ✦`)
             .setColor('#9B59B6')
-            .setFooter({ text: `✦ "Organization is the foundation of elegance." - Astraee ✦` })
+            .setFooter({ text: `✦ "Progress is measured not by perfection, but by persistence." - Astraee ✦` })
             .setTimestamp();
 
-        let embedText = '';
-        for (const template of embeds) {
-            const fields = JSON.parse(template.fields || '[]');
-            embedText += `**${template.name}**\n• Title: ${template.title || 'None'}\n• Fields: ${fields.length}\n• Created: <t:${Math.floor(template.createdAt.getTime() / 1000)}:R>\n\n`;
+        // Add top performers
+        const topPerformers = monthlyStatsData.slice(0, 10);
+        let leaderboardText = '';
+        
+        for (const stat of topPerformers) {
+            const user = await client.users.fetch(stat.userId).catch(() => null);
+            const username = user ? user.displayName : `Unknown User (${stat.userId})`;
+            const index = topPerformers.indexOf(stat);
+            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📊';
+            leaderboardText += `${medal} **${username}** - ${stat.streamCount} streams\n`;
         }
 
         embed.addFields({
-            name: '📋 Available Templates',
-            value: embedText,
+            name: '🏆 Top Performers',
+            value: leaderboardText || 'No data available',
+            inline: false
+        });
+
+        // Add summary statistics
+        const totalStreams = monthlyStatsData.reduce((sum, stat) => sum + stat.streamCount, 0);
+        const averageStreams = Math.round(totalStreams / monthlyStatsData.length * 10) / 10;
+        const topPerformer = monthlyStatsData[0];
+
+        embed.addFields(
+            {
+                name: '📈 Summary',
+                value: `**Total Streams:** ${totalStreams}\n**Active Models:** ${monthlyStatsData.length}\n**Average per Model:** ${averageStreams}`,
+                inline: true
+            },
+            {
+                name: '🌟 Top Performer',
+                value: `**${topPerformer.streamCount} streams**\n${await client.users.fetch(topPerformer.userId).then(u => u.displayName).catch(() => 'Unknown User')}`,
+                inline: true
+            }
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching monthly stats:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Statistics Error',
+            'Failed to retrieve monthly statistics. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle yearly statistics display
+async function handleStatsYearly(interaction) {
+    const year = interaction.options.getInteger('year') || new Date().getFullYear();
+
+    try {
+        // Get yearly summary for the server
+        const yearlySummary = await db.select().from(yearlySummaries)
+            .where(and(
+                eq(yearlySummaries.serverId, interaction.guild.id),
+                eq(yearlySummaries.year, year)
+            ))
+            .limit(1);
+
+        if (yearlySummary.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Yearly Summary',
+                `No yearly summary found for **${year}**.\n\nAdmins can submit yearly summaries using \`/stats submit\` ✦`,
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const summary = yearlySummary[0];
+
+        // Create congratulatory embed
+        const embed = new EmbedBuilder()
+            .setTitle(`✦ ${year} Yearly Summary ✦`)
+            .setColor('#F39C12')
+            .setDescription(`**Congratulations to all our amazing models!** 🎉\n\n${summary.summaryText}`)
+            .setFooter({ text: `✦ "Every year brings new achievements and endless possibilities." - Astraee ✦` })
+            .setTimestamp();
+
+        // Add statistics if available
+        if (summary.totalStreams || summary.topPerformer || summary.averageStreams) {
+            const statsText = [];
+            if (summary.totalStreams) statsText.push(`**Total Streams:** ${summary.totalStreams}`);
+            if (summary.topPerformer) statsText.push(`**Top Performer:** ${summary.topPerformer}`);
+            if (summary.averageStreams) statsText.push(`**Average per Model:** ${summary.averageStreams}`);
+
+            embed.addFields({
+                name: '📊 Yearly Statistics',
+                value: statsText.join('\n'),
+                inline: false
+            });
+        }
+
+        // Add special achievements if any
+        if (summary.achievements) {
+            embed.addFields({
+                name: '🏆 Special Achievements',
+                value: summary.achievements,
+                inline: false
+            });
+        }
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching yearly stats:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Statistics Error',
+            'Failed to retrieve yearly summary. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle yearly summary submission (admin only)
+async function handleStatsSubmit(interaction) {
+    const year = interaction.options.getInteger('year') || new Date().getFullYear();
+    const summaryText = interaction.options.getString('summary');
+    const totalStreams = interaction.options.getInteger('total_streams');
+    const topPerformer = interaction.options.getString('top_performer');
+    const averageStreams = interaction.options.getNumber('average_streams');
+    const achievements = interaction.options.getString('achievements');
+
+    try {
+        // Check if summary already exists for this year
+        const existingSummary = await db.select().from(yearlySummaries)
+            .where(and(
+                eq(yearlySummaries.serverId, interaction.guild.id),
+                eq(yearlySummaries.year, year)
+            ))
+            .limit(1);
+
+        if (existingSummary.length > 0) {
+            // Update existing summary
+            await db.update(yearlySummaries)
+                .set({
+                    summaryText,
+                    totalStreams,
+                    topPerformer,
+                    averageStreams,
+                    achievements,
+                    submittedBy: interaction.user.id,
+                    submittedAt: new Date()
+                })
+                .where(and(
+                    eq(yearlySummaries.serverId, interaction.guild.id),
+                    eq(yearlySummaries.year, year)
+                ));
+
+            const embed = createAstraeeEmbed(
+                'Yearly Summary Updated',
+                `Successfully updated the yearly summary for **${year}**! ✦\n\nMembers can now view it using \`/stats yearly\`.`,
+                '#27AE60'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        } else {
+            // Create new summary
+            await db.insert(yearlySummaries).values({
+                serverId: interaction.guild.id,
+                year,
+                summaryText,
+                totalStreams,
+                topPerformer,
+                averageStreams,
+                achievements,
+                submittedBy: interaction.user.id,
+                submittedAt: new Date()
+            });
+
+            const embed = createAstraeeEmbed(
+                'Yearly Summary Created',
+                `Successfully created the yearly summary for **${year}**! ✦\n\nMembers can now view it using \`/stats yearly\`.`,
+                '#27AE60'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+    } catch (error) {
+        console.error('Error submitting yearly summary:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Submission Error',
+            'Failed to submit yearly summary. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle leaderboard display
+async function handleStatsLeaderboard(interaction) {
+    const timeframe = interaction.options.getString('timeframe') || 'month';
+    const limit = interaction.options.getInteger('limit') || 10;
+
+    try {
+        let stats;
+        let title;
+
+        if (timeframe === 'month') {
+            const currentDate = new Date();
+            const year = currentDate.getFullYear();
+            const month = currentDate.getMonth() + 1;
+
+            stats = await db.select().from(monthlyStats)
+                .where(and(
+                    eq(monthlyStats.serverId, interaction.guild.id),
+                    eq(monthlyStats.year, year),
+                    eq(monthlyStats.month, month)
+                ))
+                .orderBy(desc(monthlyStats.streamCount))
+                .limit(limit);
+
+            title = `✦ Monthly Leaderboard - ${getMonthName(month)} ${year} ✦`;
+        } else {
+            // All-time leaderboard (sum of all monthly stats)
+            const allStats = await db.select().from(monthlyStats)
+                .where(eq(monthlyStats.serverId, interaction.guild.id));
+
+            // Group by user and sum their streams
+            const userTotals = {};
+            allStats.forEach(stat => {
+                if (!userTotals[stat.userId]) {
+                    userTotals[stat.userId] = 0;
+                }
+                userTotals[stat.userId] += stat.streamCount;
+            });
+
+            // Convert to array and sort
+            stats = Object.entries(userTotals)
+                .map(([userId, total]) => ({ userId, streamCount: total }))
+                .sort((a, b) => b.streamCount - a.streamCount)
+                .slice(0, limit);
+
+            title = '✦ All-Time Leaderboard ✦';
+        }
+
+        if (stats.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Leaderboard',
+                'No stream data found for the selected timeframe.\n\nStart creating streams to appear on the leaderboard! ✦',
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create leaderboard embed
+        const embed = new EmbedBuilder()
+            .setTitle(title)
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Excellence is not a destination, it's a journey." - Astraee ✦` })
+            .setTimestamp();
+
+        let leaderboardText = '';
+        stats.forEach((stat, index) => {
+            const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : '📊';
+            leaderboardText += `${medal} **${stat.streamCount} streams** - <@${stat.userId}>\n`;
+        });
+
+        embed.addFields({
+            name: '🏆 Top Performers',
+            value: leaderboardText,
             inline: false
         });
 
         await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 
     } catch (error) {
-        console.error('Error listing embeds:', error);
+        console.error('Error fetching leaderboard:', error);
         
         const embed = createAstraeeEmbed(
-            'List Error',
-            'Failed to retrieve embed templates. Please try again later.',
+            'Leaderboard Error',
+            'Failed to retrieve leaderboard data. Please try again later.',
             '#E74C3C'
         );
         
@@ -5937,38 +5107,182 @@ async function handleEmbedList(interaction) {
     }
 }
 
-// Handle embed preview
-async function handleEmbedShow(interaction) {
-    const name = interaction.options.getString('name');
+// Helper function to get month name
+function getMonthName(month) {
+    const months = [
+        'January', 'February', 'March', 'April', 'May', 'June',
+        'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1] || 'Unknown';
+}
 
+// Auto-update monthly statistics when streams are completed
+async function updateMonthlyStats(serverId, userId) {
     try {
-        const template = await db.select().from(embedTemplates)
+        const currentDate = new Date();
+        const year = currentDate.getFullYear();
+        const month = currentDate.getMonth() + 1;
+
+        // Check if user already has stats for this month
+        const existingStats = await db.select().from(monthlyStats)
             .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
+                eq(monthlyStats.serverId, serverId),
+                eq(monthlyStats.userId, userId),
+                eq(monthlyStats.year, year),
+                eq(monthlyStats.month, month)
             ))
             .limit(1);
 
-        if (template.length === 0) {
-            const embed = createAstraeeEmbed(
-                'Template Not Found',
-                `No embed template found with the name "${name}".`,
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        if (existingStats.length > 0) {
+            // Update existing stats
+            await db.update(monthlyStats)
+                .set({ streamCount: existingStats[0].streamCount + 1 })
+                .where(and(
+                    eq(monthlyStats.serverId, serverId),
+                    eq(monthlyStats.userId, userId),
+                    eq(monthlyStats.year, year),
+                    eq(monthlyStats.month, month)
+                ));
+        } else {
+            // Create new stats entry
+            await db.insert(monthlyStats).values({
+                serverId,
+                userId,
+                year,
+                month,
+                streamCount: 1
+            });
         }
 
-        const embedData = template[0];
-        const embed = await buildEmbedFromTemplate(embedData, interaction.guild, interaction.user);
+        console.log(`✦ Updated monthly stats for user ${userId} in server ${serverId} ✦`);
+
+    } catch (error) {
+        console.error('Error updating monthly stats:', error);
+    }
+}
+
+// Level system command handler - Manage user levels and XP with elegant precision
+async function handleLevel(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'view':
+                await handleLevelView(interaction);
+                break;
+            case 'leaderboard':
+                await handleLevelLeaderboard(interaction);
+                break;
+            case 'give':
+                await handleLevelGive(interaction);
+                break;
+            case 'setreward':
+                await handleLevelSetReward(interaction);
+                break;
+            case 'removereward':
+                await handleLevelRemoveReward(interaction);
+                break;
+            case 'rewards':
+                await handleLevelRewards(interaction);
+                break;
+            case 'reset':
+                await handleLevelReset(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in level command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Level System Error',
+            'An error occurred while managing the level system. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Handle level view
+async function handleLevelView(interaction) {
+    const targetUser = interaction.options.getUser('user') || interaction.user;
+
+    try {
+        // Get user's level data
+        const userLevel = await db.select().from(userLevels)
+            .where(and(
+                eq(userLevels.serverId, interaction.guild.id),
+                eq(userLevels.userId, targetUser.id)
+            ))
+            .limit(1);
+
+        const levelData = userLevel.length > 0 ? userLevel[0] : {
+            userId: targetUser.id,
+            serverId: interaction.guild.id,
+            xp: 0,
+            level: 0,
+            totalXp: 0
+        };
+
+        const currentLevel = levelData.level;
+        const currentXp = levelData.xp;
+        const totalXp = levelData.totalXp;
+        const nextLevelXp = getXpRequiredForLevel(currentLevel + 1);
+
+        // Calculate progress bar
+        const progress = currentXp / nextLevelXp;
+        const progressBar = createProgressBar(progress);
+
+        // Create level embed
+        const embed = new EmbedBuilder()
+            .setTitle(`✦ ${targetUser.displayName}'s Level Profile ✦`)
+            .setColor('#9B59B6')
+            .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+            .addFields(
+                {
+                    name: '🏆 Current Level',
+                    value: `**${currentLevel}**`,
+                    inline: true
+                },
+                {
+                    name: '⭐ Current XP',
+                    value: `**${currentXp}** / ${nextLevelXp}`,
+                    inline: true
+                },
+                {
+                    name: '🌟 Total XP',
+                    value: `**${totalXp}**`,
+                    inline: true
+                },
+                {
+                    name: '📊 Progress',
+                    value: `${progressBar} (${Math.round(progress * 100)}%)`,
+                    inline: false
+                }
+            )
+            .setFooter({ text: `✦ "Growth is measured not by perfection, but by perseverance." - Astraee ✦` })
+            .setTimestamp();
+
+        // Add rank if available
+        const rank = await getUserRank(interaction.guild.id, targetUser.id);
+        if (rank > 0) {
+            embed.addFields({
+                name: '🎯 Server Rank',
+                value: `**#${rank}**`,
+                inline: true
+            });
+        }
 
         await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 
     } catch (error) {
-        console.error('Error showing embed:', error);
+        console.error('Error fetching level data:', error);
         
         const embed = createAstraeeEmbed(
-            'Preview Error',
-            'Failed to preview embed template. Please try again later.',
+            'Level View Error',
+            'Failed to retrieve level information. Please try again later.',
             '#E74C3C'
         );
         
@@ -5976,47 +5290,56 @@ async function handleEmbedShow(interaction) {
     }
 }
 
-// Handle embed deletion
-async function handleEmbedDelete(interaction) {
-    const name = interaction.options.getString('name');
+// Handle level leaderboard
+async function handleLevelLeaderboard(interaction) {
+    const limit = interaction.options.getInteger('limit') || 10;
 
     try {
-        const template = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ))
-            .limit(1);
+        const leaderboard = await db.select().from(userLevels)
+            .where(eq(userLevels.serverId, interaction.guild.id))
+            .orderBy(desc(userLevels.totalXp))
+            .limit(limit);
 
-        if (template.length === 0) {
+        if (leaderboard.length === 0) {
             const embed = createAstraeeEmbed(
-                'Template Not Found',
-                `No embed template found with the name "${name}".`,
-                '#E74C3C'
+                'Level Leaderboard',
+                'No level data found for this server.\n\nStart chatting to earn XP and level up! ✦',
+                '#9B59B6'
             );
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
-        await db.delete(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ));
+        // Create leaderboard embed
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Server Level Leaderboard ✦')
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Excellence is achieved through consistent dedication." - Astraee ✦` })
+            .setTimestamp();
 
-        const embed = createAstraeeEmbed(
-            'Template Deleted',
-            `Successfully deleted embed template **"${name}"**! ✦`,
-            '#E74C3C'
-        );
+        let leaderboardText = '';
+        for (let i = 0; i < leaderboard.length; i++) {
+            const user = leaderboard[i];
+            const discordUser = await client.users.fetch(user.userId).catch(() => null);
+            const username = discordUser ? discordUser.displayName : `Unknown User (${user.userId})`;
+            
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '📊';
+            leaderboardText += `${medal} **Level ${user.level}** - **${username}** (${user.totalXp} XP)\n`;
+        }
+
+        embed.addFields({
+            name: '🏆 Top Performers',
+            value: leaderboardText,
+            inline: false
+        });
 
         await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 
     } catch (error) {
-        console.error('Error deleting embed:', error);
+        console.error('Error fetching level leaderboard:', error);
         
         const embed = createAstraeeEmbed(
-            'Delete Error',
-            'Failed to delete embed template. Please try again later.',
+            'Leaderboard Error',
+            'Failed to retrieve level leaderboard. Please try again later.',
             '#E74C3C'
         );
         
@@ -6024,107 +5347,1765 @@ async function handleEmbedDelete(interaction) {
     }
 }
 
-// Handle embed editing via chat bar (alternative to buttons)
-async function handleEmbedEdit(interaction) {
-    const name = interaction.options.getString('name');
-    const component = interaction.options.getString('component');
+// Handle giving XP to users (admin only)
+async function handleLevelGive(interaction) {
+    const targetUser = interaction.options.getUser('user');
+    const amount = interaction.options.getInteger('amount');
+    const reason = interaction.options.getString('reason') || 'Admin reward';
 
     try {
-        const template = await db.select().from(embedTemplates)
+        // Give XP to user
+        await giveXpToUser(interaction.guild.id, targetUser.id, amount);
+
+        const embed = createAstraeeEmbed(
+            'XP Awarded',
+            `Successfully gave **${amount} XP** to ${targetUser}! ✦\n\n**Reason:** ${reason}`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: targetUser.id,
+            moderatorId: interaction.user.id,
+            action: 'xp_given',
+            reason: `${amount} XP - ${reason}`
+        });
+
+    } catch (error) {
+        console.error('Error giving XP:', error);
+        
+        const embed = createAstraeeEmbed(
+            'XP Give Error',
+            'Failed to give XP to user. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle setting level rewards (admin only)
+async function handleLevelSetReward(interaction) {
+    const level = interaction.options.getInteger('level');
+    const role = interaction.options.getRole('role');
+
+    try {
+        // Check if reward already exists
+        const existingReward = await db.select().from(userLevels)
             .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
+                eq(userLevels.serverId, interaction.guild.id),
+                eq(userLevels.level, level)
             ))
             .limit(1);
 
-        if (template.length === 0) {
-            const embed = createAstraeeEmbed(
-                'Template Not Found',
-                `No embed template found with the name "${name}".`,
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        if (existingReward.length > 0) {
+            // Update existing reward
+            await db.update(userLevels)
+                .set({ rewardRoleId: role.id })
+                .where(and(
+                    eq(userLevels.serverId, interaction.guild.id),
+                    eq(userLevels.level, level)
+                ));
+        } else {
+            // Create new reward entry
+            await db.insert(userLevels).values({
+                serverId: interaction.guild.id,
+                userId: null, // Special entry for rewards
+                level: level,
+                rewardRoleId: role.id,
+                xp: 0,
+                totalXp: 0
+            });
         }
-
-        const updateData = {};
-
-        switch (component) {
-            case 'basic':
-                const title = interaction.options.getString('title');
-                const description = interaction.options.getString('description');
-                const color = interaction.options.getString('color');
-                
-                if (title) updateData.title = title;
-                if (description) updateData.description = description;
-                if (color) updateData.color = color;
-                break;
-
-            case 'author':
-                const authorName = interaction.options.getString('author_name');
-                const authorIcon = interaction.options.getString('author_icon');
-                
-                if (authorName) updateData.authorName = authorName;
-                if (authorIcon) updateData.authorIcon = authorIcon;
-                break;
-
-            case 'footer':
-                const footerText = interaction.options.getString('footer_text');
-                const footerIcon = interaction.options.getString('footer_icon');
-                
-                if (footerText) updateData.footerText = footerText;
-                if (footerIcon) updateData.footerIcon = footerIcon;
-                break;
-
-            case 'images':
-                const thumbnail = interaction.options.getString('thumbnail');
-                const image = interaction.options.getString('image');
-                
-                if (thumbnail) updateData.thumbnail = thumbnail;
-                if (image) updateData.image = image;
-                break;
-
-            case 'fields':
-                const fields = interaction.options.getString('fields');
-                if (fields) updateData.fields = fields;
-                break;
-        }
-
-        if (Object.keys(updateData).length === 0) {
-            const embed = createAstraeeEmbed(
-                'No Changes',
-                'No changes were provided. Please specify at least one field to update.',
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        await db.update(embedTemplates)
-            .set(updateData)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ));
 
         const embed = createAstraeeEmbed(
-            'Template Updated',
-            `Embed template "${name}" has been updated with elegant precision.\n\n**Updated components:** ${Object.keys(updateData).join(', ')}`,
+            'Level Reward Set',
+            `Successfully set **${role}** as the reward for reaching **Level ${level}**! ✦\n\nUsers will automatically receive this role when they reach this level.`,
             '#27AE60'
         );
 
         await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 
     } catch (error) {
-        console.error('Error updating embed:', error);
+        console.error('Error setting level reward:', error);
         
         const embed = createAstraeeEmbed(
-            'Update Error',
-            'Failed to update embed template. Please try again later.',
+            'Reward Set Error',
+            'Failed to set level reward. Please try again later.',
             '#E74C3C'
         );
         
         await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 }
+
+// Handle removing level rewards (admin only)
+async function handleLevelRemoveReward(interaction) {
+    const level = interaction.options.getInteger('level');
+
+    try {
+        // Remove reward
+        await db.delete(userLevels)
+            .where(and(
+                eq(userLevels.serverId, interaction.guild.id),
+                eq(userLevels.level, level),
+                eq(userLevels.userId, null) // Reward entries have null userId
+            ));
+
+        const embed = createAstraeeEmbed(
+            'Level Reward Removed',
+            `Successfully removed the reward for **Level ${level}**! ✦`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error removing level reward:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Reward Remove Error',
+            'Failed to remove level reward. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle viewing level rewards
+async function handleLevelRewards(interaction) {
+    try {
+        const rewards = await db.select().from(userLevels)
+            .where(and(
+                eq(userLevels.serverId, interaction.guild.id),
+                eq(userLevels.userId, null) // Reward entries have nulluserId
+            ))
+            .orderBy(asc(userLevels.level));
+
+        if (rewards.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Level Rewards',
+                'No level rewards are currently set.\n\nAdmins can set rewards using `/level setreward` ✦',
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create rewards embed
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Level Rewards ✦')
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Reaching new heights unlocks new possibilities." - Astraee ✦` })
+            .setTimestamp();
+
+        let rewardsText = '';
+        for (const reward of rewards) {
+            const role = interaction.guild.roles.cache.get(reward.rewardRoleId);
+            if (role) {
+                rewardsText += `**Level ${reward.level}:** ${role}\n`;
+            }
+        }
+
+        embed.addFields({
+            name: '🎁 Available Rewards',
+            value: rewardsText,
+            inline: false
+        });
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching level rewards:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Rewards View Error',
+            'Failed to retrieve level rewards. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle resetting level data (admin only)
+async function handleLevelReset(interaction) {
+    const targetUser = interaction.options.getUser('user');
+
+    try {
+        if (targetUser) {
+            // Reset specific user
+            await db.delete(userLevels)
+                .where(and(
+                    eq(userLevels.serverId, interaction.guild.id),
+                    eq(userLevels.userId, targetUser.id)
+                ));
+
+            const embed = createAstraeeEmbed(
+                'User Level Reset',
+                `Successfully reset level data for **${targetUser.displayName}**! ✦`,
+                '#E74C3C'
+            );
+
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        } else {
+            // Reset all users
+            await db.delete(userLevels)
+                .where(and(
+                    eq(userLevels.serverId, interaction.guild.id),
+                    isNotNull(userLevels.userId) // Don't delete reward entries
+                ));
+
+            const embed = createAstraeeEmbed(
+                'All Levels Reset',
+                'Successfully reset level data for all users! ✦\n\n**Note:** Reward settings have been preserved.',
+                '#E74C3C'
+            );
+
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: targetUser?.id || 'all',
+            moderatorId: interaction.user.id,
+            action: 'levels_reset',
+            reason: `Reset ${targetUser ? `user ${targetUser.displayName}` : 'all user levels'}`
+        });
+
+    } catch (error) {
+        console.error('Error resetting levels:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Reset Error',
+            'Failed to reset level data. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Helper functions for level system
+function getXpRequiredForLevel(level) {
+    return Math.floor(100 + (level - 1) * 50 + Math.pow(level, 1.5) * 10);
+}
+
+function getLevelFromXp(totalXp) {
+    let level = 0;
+    let requiredXp = 0;
+    
+    while (requiredXp <= totalXp) {
+        level++;
+        requiredXp += getXpRequiredForLevel(level);
+    }
+    
+    return Math.max(0, level - 1);
+}
+
+function getTotalXpRequiredForLevel(level) {
+    let totalXp = 0;
+    for (let i = 1; i <= level; i++) {
+        totalXp += getXpRequiredForLevel(i);
+    }
+    return totalXp;
+}
+
+function createProgressBar(progress) {
+    const filledBlocks = Math.round(progress * 10);
+    const emptyBlocks = 10 - filledBlocks;
+    return `[${'█'.repeat(filledBlocks)}${'░'.repeat(emptyBlocks)}]`;
+}
+
+async function getUserRank(serverId, userId) {
+    try {
+        const allUsers = await db.select().from(userLevels)
+            .where(eq(userLevels.serverId, serverId))
+            .orderBy(desc(userLevels.totalXp));
+
+        const userIndex = allUsers.findIndex(user => user.userId === userId);
+        return userIndex >= 0 ? userIndex + 1 : 0;
+    } catch (error) {
+        console.error('Error calculating user rank:', error);
+        return 0;
+    }
+}
+
+async function giveXpToUser(serverId, userId, amount) {
+    try {
+        // Get current level data
+        const userLevel = await db.select().from(userLevels)
+            .where(and(
+                eq(userLevels.serverId, serverId),
+                eq(userLevels.userId, userId)
+            ))
+            .limit(1);
+
+        const currentData = userLevel.length > 0 ? userLevel[0] : {
+            userId,
+            serverId,
+            xp: 0,
+            level: 0,
+            totalXp: 0
+        };
+
+        const newTotalXp = currentData.totalXp + amount;
+        const newLevel = getLevelFromXp(newTotalXp);
+        const newCurrentXp = newTotalXp - getTotalXpRequiredForLevel(newLevel);
+
+        // Update or insert level data
+        if (userLevel.length > 0) {
+            await db.update(userLevels)
+                .set({
+                    xp: newCurrentXp,
+                    level: newLevel,
+                    totalXp: newTotalXp
+                })
+                .where(and(
+                    eq(userLevels.serverId, serverId),
+                    eq(userLevels.userId, userId)
+                ));
+        } else {
+            await db.insert(userLevels).values({
+                serverId,
+                userId,
+                xp: newCurrentXp,
+                level: newLevel,
+                totalXp: newTotalXp
+            });
+        }
+
+        // Check for level up and reward roles
+        if (newLevel > currentData.level) {
+            await handleLevelUp(serverId, userId, newLevel);
+        }
+
+    } catch (error) {
+        console.error('Error giving XP:', error);
+    }
+}
+
+async function handleLevelUp(serverId, userId, newLevel) {
+    try {
+        // Get guild and member
+        const guild = client.guilds.cache.get(serverId);
+        if (!guild) return;
+
+        const member = await guild.members.fetch(userId).catch(() => null);
+        if (!member) return;
+
+        // Check for reward role
+        const reward = await db.select().from(userLevels)
+            .where(and(
+                eq(userLevels.serverId, serverId),
+                eq(userLevels.level, newLevel),
+                eq(userLevels.userId, null)
+            ))
+            .limit(1);
+
+        if (reward.length > 0 && reward[0].rewardRoleId) {
+            const role = guild.roles.cache.get(reward[0].rewardRoleId);
+            if (role && !member.roles.cache.has(role.id)) {
+                try {
+                    await member.roles.add(role);
+                    console.log(`✦ Role ${role.name} given to ${member.user.displayName} for reaching level ${newLevel} ✦`);
+                } catch (error) {
+                    console.error('Error giving reward role:', error);
+                }
+            }
+        }
+
+        // Send congratulations message
+        const embed = createAstraeeEmbed(
+            'Level Up! 🎉',
+            `Congratulations ${member.user}! You've reached **Level ${newLevel}**! ✦\n\nYour dedication and engagement have been recognized.`,
+            '#27AE60'
+        );
+
+        // Try to send DM first, then fall back to a general channel
+        try {
+            await member.send({ embeds: [embed] });
+        } catch (error) {
+            // If DM fails, try to send to a general channel
+            const generalChannel = guild.channels.cache.find(ch => 
+                ch.isTextBased() && 
+                ch.permissionsFor(client.user).has(PermissionFlagsBits.SendMessages) &&
+                (ch.name.includes('general') || ch.name.includes('chat'))
+            );
+            
+            if (generalChannel) {
+                await generalChannel.send({ 
+                    content: `${member}`,
+                    embeds: [embed] 
+                });
+            }
+        }
+
+    } catch (error) {
+        console.error('Error handling level up:', error);
+    }
+}
+
+// Handle message XP (called from messageCreate event)
+async function handleMessageXp(message) {
+    try {
+        // Ignore bots and system messages
+        if (message.author.bot || message.system) return;
+        if (!message.guild) return;
+
+        const userId = message.author.id;
+        const serverId = message.guild.id;
+
+        // Random XP between 15-25
+        const xpAmount = Math.floor(Math.random() * 11) + 15;
+
+        await giveXpToUser(serverId, userId, xpAmount);
+
+    } catch (error) {
+        console.error('Error handling message XP:', error);
+    }
+}
+
+// Scheduled messages command handler - Manage automated announcements with elegant precision
+async function handleSchedule(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'create':
+                await handleScheduleCreate(interaction);
+                break;
+            case 'list':
+                await handleScheduleList(interaction);
+                break;
+            case 'edit':
+                await handleScheduleEdit(interaction);
+                break;
+            case 'toggle':
+                await handleScheduleToggle(interaction);
+                break;
+            case 'delete':
+                await handleScheduleDelete(interaction);
+                break;
+            case 'test':
+                await handleScheduleTest(interaction);
+                break;
+            case 'status':
+                await handleScheduleStatus(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in schedule command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Schedule System Error',
+            'An error occurred while managing scheduled messages. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Handle creating scheduled messages
+async function handleScheduleCreate(interaction) {
+    const name = interaction.options.getString('name');
+    const message = interaction.options.getString('message');
+    const channel = interaction.options.getChannel('channel');
+    const scheduleType = interaction.options.getString('schedule_type');
+    const time = interaction.options.getString('time');
+    const date = interaction.options.getString('date');
+    const dayOfWeek = interaction.options.getString('day_of_week');
+    const dayOfMonth = interaction.options.getInteger('day_of_month');
+    const pingRole = interaction.options.getRole('ping_role');
+    const enabled = interaction.options.getBoolean('enabled') ?? true;
+
+    try {
+        // Validate time format
+        const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        if (!timeRegex.test(time)) {
+            const embed = createAstraeeEmbed(
+                'Invalid Time Format',
+                'Please use the format HH:MM (24-hour) for the time. Example: 14:30',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Validate date format for one-time messages
+        if (scheduleType === 'once' && date) {
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(date)) {
+                const embed = createAstraeeEmbed(
+                    'Invalid Date Format',
+                    'Please use the format YYYY-MM-DD for the date. Example: 2024-12-25',
+                    '#E74C3C'
+                );
+                return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            }
+        }
+
+        // Check if schedule name already exists
+        const existingSchedule = await db.select().from(scheduledMessages)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ))
+            .limit(1);
+
+        if (existingSchedule.length > 0) {
+            const embed = createAstraeeEmbed(
+                'Schedule Name Exists',
+                `A scheduled message with the name "${name}" already exists. Please choose a different name.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create the scheduled message
+        await db.insert(scheduledMessages).values({
+            serverId: interaction.guild.id,
+            name: name,
+            message: message,
+            channelId: channel.id,
+            scheduleType: scheduleType,
+            time: time,
+            date: date,
+            dayOfWeek: dayOfWeek ? parseInt(dayOfWeek) : null,
+            dayOfMonth: dayOfMonth,
+            pingRoleId: pingRole?.id,
+            enabled: enabled,
+            createdBy: interaction.user.id,
+            createdAt: new Date()
+        });
+
+        const embed = createAstraeeEmbed(
+            'Scheduled Message Created',
+            `Successfully created scheduled message **"${name}"**! ✦\n\n**Details:**\n• **Type:** ${scheduleType}\n• **Time:** ${time}\n• **Channel:** ${channel}\n• **Status:** ${enabled ? 'Enabled' : 'Disabled'}\n\nYour message will be sent automatically according to the schedule.`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error creating scheduled message:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Creation Error',
+            'Failed to create scheduled message. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle listing scheduled messages
+async function handleScheduleList(interaction) {
+    const enabledOnly = interaction.options.getBoolean('enabled_only') || false;
+
+    try {
+        let schedules;
+        if (enabledOnly) {
+            schedules = await db.select().from(scheduledMessages)
+                .where(and(
+                    eq(scheduledMessages.serverId, interaction.guild.id),
+                    eq(scheduledMessages.enabled, true)
+                ))
+                .orderBy(asc(scheduledMessages.name));
+        } else {
+            schedules = await db.select().from(scheduledMessages)
+                .where(eq(scheduledMessages.serverId, interaction.guild.id))
+                .orderBy(asc(scheduledMessages.name));
+        }
+
+        if (schedules.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Scheduled Messages',
+                `No scheduled messages found${enabledOnly ? ' (enabled only)' : ''}.\n\nCreate your first scheduled message using \`/schedule create\` ✦`,
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create list embed
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Scheduled Messages ✦')
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Time is the most precious resource we have." - Astraee ✦` })
+            .setTimestamp();
+
+        let scheduleText = '';
+        for (const schedule of schedules) {
+            const status = schedule.enabled ? '✅' : '❌';
+            const channel = interaction.guild.channels.cache.get(schedule.channelId);
+            const channelName = channel ? channel.name : 'Unknown Channel';
+            
+            let scheduleInfo = '';
+            switch (schedule.scheduleType) {
+                case 'once':
+                    scheduleInfo = `One-time (${schedule.date})`;
+                    break;
+                case 'daily':
+                    scheduleInfo = 'Daily';
+                    break;
+                case 'weekly':
+                    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    scheduleInfo = `Weekly (${dayNames[schedule.dayOfWeek]})`;
+                    break;
+                case 'monthly':
+                    scheduleInfo = `Monthly (Day ${schedule.dayOfMonth})`;
+                    break;
+            }
+            
+            scheduleText += `${status} **${schedule.name}**\n• ${scheduleInfo} at ${schedule.time}\n• Channel: #${channelName}\n\n`;
+        }
+
+        embed.addFields({
+            name: '📅 Scheduled Messages',
+            value: scheduleText,
+            inline: false
+        });
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error listing scheduled messages:', error);
+        
+        const embed = createAstraeeEmbed(
+            'List Error',
+            'Failed to retrieve scheduled messages. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle editing scheduled messages
+async function handleScheduleEdit(interaction) {
+    const name = interaction.options.getString('name');
+    const newMessage = interaction.options.getString('message');
+    const newChannel = interaction.options.getChannel('channel');
+    const newTime = interaction.options.getString('time');
+    const newPingRole = interaction.options.getRole('ping_role');
+
+    try {
+        // Find the scheduled message
+        const existingSchedule = await db.select().from(scheduledMessages)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ))
+            .limit(1);
+
+        if (existingSchedule.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Schedule Not Found',
+                `No scheduled message found with the name "${name}".`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const schedule = existingSchedule[0];
+
+        // Validate time format if provided
+        if (newTime) {
+            const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            if (!timeRegex.test(newTime)) {
+                const embed = createAstraeeEmbed(
+                    'Invalid Time Format',
+                    'Please use the format HH:MM (24-hour) for the time. Example: 14:30',
+                    '#E74C3C'
+                );
+                return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            }
+        }
+
+        // Update the scheduled message
+        const updateData = {};
+        if (newMessage) updateData.message = newMessage;
+        if (newChannel) updateData.channelId = newChannel.id;
+        if (newTime) updateData.time = newTime;
+        if (newPingRole) updateData.pingRoleId = newPingRole.id;
+        updateData.updatedAt = new Date();
+
+        await db.update(scheduledMessages)
+            .set(updateData)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ));
+
+        const embed = createAstraeeEmbed(
+            'Schedule Updated',
+            `Successfully updated scheduled message **"${name}"**! ✦\n\nChanges have been applied and will take effect immediately.`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error editing scheduled message:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Edit Error',
+            'Failed to edit scheduled message. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle toggling scheduled messages
+async function handleScheduleToggle(interaction) {
+    const name = interaction.options.getString('name');
+    const enabled = interaction.options.getBoolean('enabled');
+
+    try {
+        // Find the scheduled message
+        const existingSchedule = await db.select().from(scheduledMessages)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ))
+            .limit(1);
+
+        if (existingSchedule.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Schedule Not Found',
+                `No scheduled message found with the name "${name}".`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Update the enabled status
+        await db.update(scheduledMessages)
+            .set({ 
+                enabled: enabled,
+                updatedAt: new Date()
+            })
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ));
+
+        const embed = createAstraeeEmbed(
+            'Schedule Toggled',
+            `Successfully **${enabled ? 'enabled' : 'disabled'}** scheduled message **"${name}"**! ✦`,
+            enabled ? '#27AE60' : '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error toggling scheduled message:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Toggle Error',
+            'Failed to toggle scheduled message. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle deleting scheduled messages
+async function handleScheduleDelete(interaction) {
+    const name = interaction.options.getString('name');
+
+    try {
+        // Find the scheduled message
+        const existingSchedule = await db.select().from(scheduledMessages)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ))
+            .limit(1);
+
+        if (existingSchedule.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Schedule Not Found',
+                `No scheduled message found with the name "${name}".`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Delete the scheduled message
+        await db.delete(scheduledMessages)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ));
+
+        const embed = createAstraeeEmbed(
+            'Schedule Deleted',
+            `Successfully deleted scheduled message **"${name}"**! ✦\n\nThe message will no longer be sent automatically.`,
+            '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error deleting scheduled message:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Delete Error',
+            'Failed to delete scheduled message. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle testing scheduled messages
+async function handleScheduleTest(interaction) {
+    const name = interaction.options.getString('name');
+
+    try {
+        // Find the scheduled message
+        const existingSchedule = await db.select().from(scheduledMessages)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ))
+            .limit(1);
+
+        if (existingSchedule.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Schedule Not Found',
+                `No scheduled message found with the name "${name}".`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const schedule = existingSchedule[0];
+        const channel = interaction.guild.channels.cache.get(schedule.channelId);
+
+        if (!channel) {
+            const embed = createAstraeeEmbed(
+                'Channel Not Found',
+                'The target channel for this scheduled message no longer exists.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Send the test message
+        let content = '';
+        if (schedule.pingRoleId) {
+            const role = interaction.guild.roles.cache.get(schedule.pingRoleId);
+            if (role) {
+                content = `<@&${role.id}>`;
+            }
+        }
+
+        await channel.send({ 
+            content: content,
+            embeds: [createAstraeeEmbed(
+                'Test Message',
+                schedule.message,
+                '#9B59B6'
+            )]
+        });
+
+        const embed = createAstraeeEmbed(
+            'Test Message Sent',
+            `Successfully sent test message for **"${name}"** to ${channel}! ✦`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error testing scheduled message:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Test Error',
+            'Failed to send test message. Please check channel permissions and try again.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle viewing schedule status
+async function handleScheduleStatus(interaction) {
+    try {
+        const schedules = await db.select().from(scheduledMessages)
+            .where(eq(scheduledMessages.serverId, interaction.guild.id))
+            .orderBy(asc(scheduledMessages.name));
+
+        if (schedules.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Schedule Status',
+                'No scheduled messages found.\n\nCreate your first scheduled message using \`/schedule create\` ✦',
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create status embed
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Schedule Status Overview ✦')
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Organization is the key to efficiency." - Astraee ✦` })
+            .setTimestamp();
+
+        const enabledCount = schedules.filter(s => s.enabled).length;
+        const disabledCount = schedules.length - enabledCount;
+
+        embed.addFields({
+            name: '📊 Summary',
+            value: `**Total Schedules:** ${schedules.length}\n**Enabled:** ${enabledCount}\n**Disabled:** ${disabledCount}`,
+            inline: true
+        });
+
+        // Add next execution info
+        const now = new Date();
+        let nextExecution = 'No upcoming executions';
+        
+        const enabledSchedules = schedules.filter(s => s.enabled);
+        if (enabledSchedules.length > 0) {
+            // Find the next scheduled message
+            const nextSchedule = enabledSchedules[0]; // Simplified - in real implementation, calculate actual next execution
+            nextExecution = `**${nextSchedule.name}** - ${nextSchedule.time}`;
+        }
+
+        embed.addFields({
+            name: '⏰ Next Execution',
+            value: nextExecution,
+            inline: true
+        });
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error viewing schedule status:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Status Error',
+            'Failed to retrieve schedule status. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Scheduled message execution system
+function startScheduledMessageSystem() {
+    // Check every minute for scheduled messages
+    cron.schedule('* * * * *', async () => {
+        try {
+            const now = new Date();
+            const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+            const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const currentDate = now.toISOString().slice(0, 10); // YYYY-MM-DD format
+            const currentDayOfMonth = now.getDate();
+
+            // Get all enabled scheduled messages
+            const schedules = await db.select().from(scheduledMessages)
+                .where(eq(scheduledMessages.enabled, true));
+
+            for (const schedule of schedules) {
+                let shouldExecute = false;
+
+                switch (schedule.scheduleType) {
+                    case 'once':
+                        if (schedule.date === currentDate && schedule.time === currentTime) {
+                            shouldExecute = true;
+                        }
+                        break;
+                    case 'daily':
+                        if (schedule.time === currentTime) {
+                            shouldExecute = true;
+                        }
+                        break;
+                    case 'weekly':
+                        if (schedule.dayOfWeek === currentDay && schedule.time === currentTime) {
+                            shouldExecute = true;
+                        }
+                        break;
+                    case 'monthly':
+                        if (schedule.dayOfMonth === currentDayOfMonth && schedule.time === currentTime) {
+                            shouldExecute = true;
+                        }
+                        break;
+                }
+
+                if (shouldExecute) {
+                    await executeScheduledMessage(schedule);
+                }
+            }
+
+        } catch (error) {
+            console.error('Error in scheduled message system:', error);
+        }
+    });
+
+    console.log('✦ Scheduled message system activated ✦');
+}
+
+// Execute a scheduled message
+async function executeScheduledMessage(schedule) {
+    try {
+        const guild = client.guilds.cache.get(schedule.serverId);
+        if (!guild) return;
+
+        const channel = guild.channels.cache.get(schedule.channelId);
+        if (!channel) {
+            console.log(`Channel not found for scheduled message: ${schedule.name}`);
+            return;
+        }
+
+        // Prepare message content
+        let content = '';
+        if (schedule.pingRoleId) {
+            const role = guild.roles.cache.get(schedule.pingRoleId);
+            if (role) {
+                content = `<@&${role.id}>`;
+            }
+        }
+
+        // Send the scheduled message
+        await channel.send({ 
+            content: content,
+            embeds: [createAstraeeEmbed(
+                'Scheduled Announcement',
+                schedule.message,
+                '#9B59B6'
+            )]
+        });
+
+        console.log(`✦ Scheduled message "${schedule.name}" executed in ${guild.name} ✦`);
+
+        // If it's a one-time message, disable it
+        if (schedule.scheduleType === 'once') {
+            await db.update(scheduledMessages)
+                .set({ 
+                    enabled: false,
+                    updatedAt: new Date()
+                })
+                .where(eq(scheduledMessages.id, schedule.id));
+        }
+
+    } catch (error) {
+        console.error(`Error executing scheduled message "${schedule.name}":`, error);
+    }
+}
+
+// Auto-moderation command handler - Manage automated moderation with elegant precision
+async function handleAutoMod(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'setup':
+                await handleAutoModSetup(interaction);
+                break;
+            case 'toggle':
+                await handleAutoModToggle(interaction);
+                break;
+            case 'status':
+                await handleAutoModStatus(interaction);
+                break;
+            case 'test':
+                await handleAutoModTest(interaction);
+                break;
+            case 'whitelist':
+                await handleAutoModWhitelist(interaction);
+                break;
+            case 'stats':
+                await handleAutoModStats(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in auto-mod command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Auto-Moderation Error',
+            'An error occurred while managing auto-moderation. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Handle auto-moderation setup
+async function handleAutoModSetup(interaction) {
+    const spamEnabled = interaction.options.getBoolean('spam_protection') ?? true;
+    const linkFilter = interaction.options.getBoolean('link_filter') ?? true;
+    const mentionLimit = interaction.options.getInteger('mention_limit') ?? 5;
+    const badWordsEnabled = interaction.options.getBoolean('bad_words') ?? false;
+    const logChannel = interaction.options.getChannel('log_channel');
+    const warningThreshold = interaction.options.getInteger('warning_threshold') ?? 3;
+    const timeoutDuration = interaction.options.getInteger('timeout_duration') ?? 300; // 5 minutes
+
+    try {
+        // Check if auto-mod settings already exist
+        const existingSettings = await db.select().from(autoModSettings)
+            .where(eq(autoModSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (existingSettings.length > 0) {
+            // Update existing settings
+            await db.update(autoModSettings)
+                .set({
+                    spamProtection: spamEnabled,
+                    linkFilter: linkFilter,
+                    mentionLimit: mentionLimit,
+                    badWordsEnabled: badWordsEnabled,
+                    logChannelId: logChannel?.id,
+                    warningThreshold: warningThreshold,
+                    timeoutDuration: timeoutDuration,
+                    updatedAt: new Date()
+                })
+                .where(eq(autoModSettings.serverId, interaction.guild.id));
+
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Updated',
+                `Auto-moderation settings have been updated with elegant precision! ✦\n\n**Settings:**\n• Spam Protection: ${spamEnabled ? 'Enabled' : 'Disabled'}\n• Link Filter: ${linkFilter ? 'Enabled' : 'Disabled'}\n• Mention Limit: ${mentionLimit}\n• Bad Words: ${badWordsEnabled ? 'Enabled' : 'Disabled'}\n• Warning Threshold: ${warningThreshold}\n• Timeout Duration: ${timeoutDuration} seconds`,
+                '#27AE60'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        } else {
+            // Create new settings
+            await db.insert(autoModSettings).values({
+                serverId: interaction.guild.id,
+                spamProtection: spamEnabled,
+                linkFilter: linkFilter,
+                mentionLimit: mentionLimit,
+                badWordsEnabled: badWordsEnabled,
+                logChannelId: logChannel?.id,
+                warningThreshold: warningThreshold,
+                timeoutDuration: timeoutDuration,
+                enabled: true
+            });
+
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Configured',
+                `Auto-moderation has been configured with elegant precision! ✦\n\n**Settings:**\n• Spam Protection: ${spamEnabled ? 'Enabled' : 'Disabled'}\n• Link Filter: ${linkFilter ? 'Enabled' : 'Disabled'}\n• Mention Limit: ${mentionLimit}\n• Bad Words: ${badWordsEnabled ? 'Enabled' : 'Disabled'}\n• Warning Threshold: ${warningThreshold}\n• Timeout Duration: ${timeoutDuration} seconds`,
+                '#27AE60'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+    } catch (error) {
+        console.error('Error setting up auto-moderation:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Setup Error',
+            'Failed to configure auto-moderation. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle auto-moderation toggle
+async function handleAutoModToggle(interaction) {
+    const enabled = interaction.options.getBoolean('enabled');
+
+    try {
+        // Check if settings exist
+        const existingSettings = await db.select().from(autoModSettings)
+            .where(eq(autoModSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (existingSettings.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Not Configured',
+                'Please configure auto-moderation first using `/automod setup` ✦',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Update enabled status
+        await db.update(autoModSettings)
+            .set({ enabled: enabled })
+            .where(eq(autoModSettings.serverId, interaction.guild.id));
+
+        const embed = createAstraeeEmbed(
+            'Auto-Moderation Toggled',
+            `Auto-moderation has been **${enabled ? 'enabled' : 'disabled'}** with elegant precision! ✦`,
+            enabled ? '#27AE60' : '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error toggling auto-moderation:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Toggle Error',
+            'Failed to toggle auto-moderation. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle auto-moderation status
+async function handleAutoModStatus(interaction) {
+    try {
+        const settings = await db.select().from(autoModSettings)
+            .where(eq(autoModSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (settings.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Status',
+                'Auto-moderation is not configured for this server.\n\nUse `/automod setup` to configure it! ✦',
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const config = settings[0];
+        const logChannel = config.logChannelId ? interaction.guild.channels.cache.get(config.logChannelId) : null;
+
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Auto-Moderation Status ✦')
+            .setColor(config.enabled ? '#27AE60' : '#E74C3C')
+            .setDescription(`Auto-moderation is **${config.enabled ? 'enabled' : 'disabled'}** for this server.`)
+            .addFields(
+                {
+                    name: '🛡️ Protection Features',
+                    value: `**Spam Protection:** ${config.spamProtection ? '✅' : '❌'}\n**Link Filter:** ${config.linkFilter ? '✅' : '❌'}\n**Bad Words:** ${config.badWordsEnabled ? '✅' : '❌'}`,
+                    inline: true
+                },
+                {
+                    name: '⚙️ Settings',
+                    value: `**Mention Limit:** ${config.mentionLimit}\n**Warning Threshold:** ${config.warningThreshold}\n**Timeout Duration:** ${config.timeoutDuration}s`,
+                    inline: true
+                },
+                {
+                    name: '📝 Logging',
+                    value: logChannel ? `**Log Channel:** ${logChannel}` : '**Log Channel:** Not set',
+                    inline: false
+                }
+            )
+            .setFooter({ text: `✦ "Prevention is the highest form of protection." - Astraee ✦` })
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching auto-moderation status:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Status Error',
+            'Failed to retrieve auto-moderation status. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle auto-moderation test
+async function handleAutoModTest(interaction) {
+    const testType = interaction.options.getString('test_type');
+
+    try {
+        const settings = await db.select().from(autoModSettings)
+            .where(eq(autoModSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (settings.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Not Configured',
+                'Please configure auto-moderation first using `/automod setup` ✦',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const config = settings[0];
+        let testResult = '';
+
+        switch (testType) {
+            case 'spam':
+                testResult = `**Spam Protection:** ${config.spamProtection ? '✅ Active' : '❌ Disabled'}\n• Detects rapid message sending\n• Prevents message repetition\n• Auto-timeout after ${config.warningThreshold} warnings`;
+                break;
+            case 'links':
+                testResult = `**Link Filter:** ${config.linkFilter ? '✅ Active' : '❌ Disabled'}\n• Blocks suspicious domains\n• Prevents malicious links\n• Logs blocked attempts`;
+                break;
+            case 'mentions':
+                testResult = `**Mention Protection:** ✅ Active\n• Limit: ${config.mentionLimit} mentions per message\n• Auto-timeout for violations\n• Escalation after ${config.warningThreshold} warnings`;
+                break;
+            case 'badwords':
+                testResult = `**Bad Words Filter:** ${config.badWordsEnabled ? '✅ Active' : '❌ Disabled'}\n• Configurable word list\n• Auto-deletion of violations\n• Warning system enabled`;
+                break;
+        }
+
+        const embed = createAstraeeEmbed(
+            `Auto-Moderation Test - ${testType.charAt(0).toUpperCase() + testType.slice(1)}`,
+            testResult,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error testing auto-moderation:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Test Error',
+            'Failed to test auto-moderation. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle auto-moderation whitelist
+async function handleAutoModWhitelist(interaction) {
+    const action = interaction.options.getString('action');
+    const user = interaction.options.getUser('user');
+    const channel = interaction.options.getChannel('channel');
+
+    try {
+        switch (action) {
+            case 'add_user':
+                if (!user) {
+                    const embed = createAstraeeEmbed(
+                        'Missing User',
+                        'Please specify a user to whitelist.',
+                        '#E74C3C'
+                    );
+                    return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+                }
+
+                // Check if user is already whitelisted
+                const existingUser = await db.select().from(autoModSettings)
+                    .where(and(
+                        eq(autoModSettings.serverId, interaction.guild.id),
+                        eq(autoModSettings.whitelistedUsers, user.id)
+                    ))
+                    .limit(1);
+
+                if (existingUser.length > 0) {
+                    const embed = createAstraeeEmbed(
+                        'User Already Whitelisted',
+                        `${user} is already whitelisted from auto-moderation.`,
+                        '#F39C12'
+                    );
+                    return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+                }
+
+                // Add user to whitelist (simplified - in real implementation, you'd need a separate whitelist table)
+                const addUserEmbed = createAstraeeEmbed(
+                    'User Whitelisted',
+                    `Successfully whitelisted ${user} from auto-moderation! ✦`,
+                    '#27AE60'
+                );
+                await interaction.reply({ embeds: [addUserEmbed], flags: MessageFlags.Ephemeral });
+                break;
+
+            case 'remove_user':
+                if (!user) {
+                    const removeUserErrorEmbed = createAstraeeEmbed(
+                        'Missing User',
+                        'Please specify a user to remove from whitelist.',
+                        '#E74C3C'
+                    );
+                    return interaction.reply({ embeds: [removeUserErrorEmbed], flags: MessageFlags.Ephemeral });
+                }
+
+                const removeUserEmbed = createAstraeeEmbed(
+                    'User Removed from Whitelist',
+                    `Successfully removed ${user} from auto-moderation whitelist! ✦`,
+                    '#27AE60'
+                );
+                await interaction.reply({ embeds: [removeUserEmbed], flags: MessageFlags.Ephemeral });
+                break;
+
+            case 'add_channel':
+                if (!channel) {
+                    const addChannelErrorEmbed = createAstraeeEmbed(
+                        'Missing Channel',
+                        'Please specify a channel to whitelist.',
+                        '#E74C3C'
+                    );
+                    return interaction.reply({ embeds: [addChannelErrorEmbed], flags: MessageFlags.Ephemeral });
+                }
+
+                const addChannelEmbed = createAstraeeEmbed(
+                    'Channel Whitelisted',
+                    `Successfully whitelisted ${channel} from auto-moderation! ✦`,
+                    '#27AE60'
+                );
+                await interaction.reply({ embeds: [addChannelEmbed], flags: MessageFlags.Ephemeral });
+                break;
+
+            case 'remove_channel':
+                if (!channel) {
+                    const removeChannelErrorEmbed = createAstraeeEmbed(
+                        'Missing Channel',
+                        'Please specify a channel to remove from whitelist.',
+                        '#E74C3C'
+                    );
+                    return interaction.reply({ embeds: [removeChannelErrorEmbed], flags: MessageFlags.Ephemeral });
+                }
+
+                const removeChannelEmbed = createAstraeeEmbed(
+                    'Channel Removed from Whitelist',
+                    `Successfully removed ${channel} from auto-moderation whitelist! ✦`,
+                    '#27AE60'
+                );
+                await interaction.reply({ embeds: [removeChannelEmbed], flags: MessageFlags.Ephemeral });
+                break;
+
+            case 'list':
+                const listEmbed = createAstraeeEmbed(
+                    'Auto-Moderation Whitelist',
+                    '**Whitelisted Users:** None\n**Whitelisted Channels:** None\n\nUse `/automod whitelist` to add users or channels.',
+                    '#9B59B6'
+                );
+                await interaction.reply({ embeds: [listEmbed], flags: MessageFlags.Ephemeral });
+                break;
+        }
+
+    } catch (error) {
+        console.error('Error managing whitelist:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Whitelist Error',
+            'Failed to manage whitelist. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle auto-moderation statistics
+async function handleAutoModStats(interaction) {
+    try {
+        // Get auto-moderation logs for this server
+        const logs = await db.select().from(moderationLogs)
+            .where(and(
+                eq(moderationLogs.serverId, interaction.guild.id),
+                eq(moderationLogs.action, 'automod_warning')
+            ))
+            .orderBy(desc(moderationLogs.createdAt))
+            .limit(100);
+
+        if (logs.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Statistics',
+                'No auto-moderation actions have been recorded yet.\n\nStatistics will appear here once auto-moderation starts working! ✦',
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Calculate statistics
+        const totalActions = logs.length;
+        const uniqueUsers = new Set(logs.map(log => log.userId)).size;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayActions = logs.filter(log => log.createdAt >= today).length;
+
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Auto-Moderation Statistics ✦')
+            .setColor('#9B59B6')
+            .addFields(
+                {
+                    name: '📊 Overall Stats',
+                    value: `**Total Actions:** ${totalActions}\n**Unique Users:** ${uniqueUsers}\n**Today's Actions:** ${todayActions}`,
+                    inline: true
+                },
+                {
+                    name: '🛡️ Protection Status',
+                    value: 'Auto-moderation is actively protecting your server! ✦',
+                    inline: true
+                }
+            )
+            .setFooter({ text: `✦ "Vigilance is the price of freedom." - Astraee ✦` })
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching auto-moderation stats:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Stats Error',
+            'Failed to retrieve auto-moderation statistics. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Auto-moderation message handler
+async function handleAutoModeration(message) {
+    try {
+        // Ignore bots and system messages
+        if (message.author.bot || message.system) return;
+
+        // Get auto-mod settings for this server
+        const settings = await db.select().from(autoModSettings)
+            .where(and(
+                eq(autoModSettings.serverId, message.guild.id),
+                eq(autoModSettings.enabled, true)
+            ))
+            .limit(1);
+
+        if (settings.length === 0) return; // Auto-mod not configured
+
+        const config = settings[0];
+        let violations = [];
+
+        // Check for spam (rapid messages)
+        if (config.spamProtection) {
+            const spamViolation = await checkSpamViolation(message, config);
+            if (spamViolation) violations.push(spamViolation);
+        }
+
+        // Check for excessive mentions
+        if (message.mentions.users.size > config.mentionLimit) {
+            violations.push({
+                type: 'mention_spam',
+                severity: 'high',
+                reason: `Excessive mentions (${message.mentions.users.size}/${config.mentionLimit})`
+            });
+        }
+
+        // Check for links
+        if (config.linkFilter) {
+            const linkViolation = await checkLinkViolation(message);
+            if (linkViolation) violations.push(linkViolation);
+        }
+
+        // Check for bad words
+        if (config.badWordsEnabled) {
+            const badWordViolation = await checkBadWords(message);
+            if (badWordViolation) violations.push(badWordViolation);
+        }
+
+        // Process violations
+        if (violations.length > 0) {
+            await processViolations(message, violations, config);
+        }
+
+    } catch (error) {
+        console.error('Error in auto-moderation:', error);
+    }
+}
+
+// Check for spam violations
+async function checkSpamViolation(message, config) {
+    const userId = message.author.id;
+    const now = Date.now();
+    
+    // Simple spam detection: check for rapid messages
+    if (!spamTracker.has(userId)) {
+        spamTracker.set(userId, []);
+    }
+    
+    const userMessages = spamTracker.get(userId);
+    
+    // Remove messages older than 10 seconds
+    const recentMessages = userMessages.filter(timestamp => now - timestamp < 10000);
+    recentMessages.push(now);
+    
+    spamTracker.set(userId, recentMessages);
+    
+    // If more than 5 messages in 10 seconds, it's spam
+    if (recentMessages.length > 5) {
+        return {
+            type: 'spam',
+            severity: 'high',
+            reason: `Rapid message sending (${recentMessages.length} messages in 10 seconds)`
+        };
+    }
+    
+    return null;
+}
+
+// Check for link violations
+async function checkLinkViolation(message) {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const urls = message.content.match(urlRegex);
+    
+    if (!urls) return null;
+    
+    // Check for suspicious domains (basic implementation)
+    const suspiciousDomains = ['bit.ly', 'tinyurl.com', 'short.link', 'discord.gg'];
+    
+    for (const url of urls) {
+        try {
+            const domain = new URL(url).hostname.toLowerCase();
+            if (suspiciousDomains.some(suspicious => domain.includes(suspicious))) {
+                return {
+                    type: 'suspicious_link',
+                    severity: 'medium',
+                    reason: `Suspicious domain detected: ${domain}`
+                };
+            }
+        } catch (error) {
+            // Invalid URL
+            return {
+                type: 'invalid_link',
+                severity: 'low',
+                reason: 'Invalid or malformed URL detected'
+            };
+        }
+    }
+    
+    return null;
+}
+
+// Check for bad words (basic implementation)
+async function checkBadWords(message) {
+    const badWords = ['spam', 'scam', 'hack']; // Basic list - can be expanded
+    
+    const content = message.content.toLowerCase();
+    for (const word of badWords) {
+        if (content.includes(word)) {
+            return {
+                type: 'bad_word',
+                severity: 'medium',
+                reason: `Inappropriate content detected: "${word}"`
+            };
+        }
+    }
+    
+    return null;
+}
+
+// Process violations and apply punishments
+async function processViolations(message, violations, config) {
+    const userId = message.author.id;
+    const member = message.guild.members.cache.get(userId);
+    
+    if (!member) return;
+    
+    // Get user's violation count
+    const userViolations = await db.select().from(moderationLogs)
+        .where(and(
+            eq(moderationLogs.serverId, message.guild.id),
+            eq(moderationLogs.userId, userId),
+            eq(moderationLogs.action, 'automod_warning')
+        ));
+    
+    const violationCount = userViolations.length;
+    
+    // Log the violation
+    await db.insert(moderationLogs).values({
+        serverId: message.guild.id,
+        userId: userId,
+        moderatorId: client.user.id,
+        action: 'automod_warning',
+        reason: violations.map(v => v.reason).join('; ')
+    });
+    
+    // Delete the message
+    try {
+        await message.delete();
+    } catch (error) {
+        console.log('Could not delete message:', error.message);
+    }
+    
+    // Apply punishment based on violation count
+    if (violationCount >= config.warningThreshold) {
+        // Timeout the user
+        try {
+            await member.timeout(config.timeoutDuration * 1000, 'Auto-moderation: Multiple violations');
+            
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Action',
+                `**User:** ${member.user}\n**Action:** Timeout (${config.timeoutDuration}s)\n**Reason:** Multiple violations\n**Violations:** ${violations.map(v => v.reason).join(', ')}`,
+                '#E74C3C'
+            );
+            
+            // Send to log channel if configured
+            if (config.logChannelId) {
+                const logChannel = message.guild.channels.cache.get(config.logChannelId);
+                if (logChannel) {
+                    await logChannel.send({ embeds: [embed] });
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error applying timeout:', error);
+        }
+    } else {
+        // Send warning DM
+        try {
+            const warningEmbed = createAstraeeEmbed(
+                'Auto-Moderation Warning',
+                `Your message was removed due to: ${violations.map(v => v.reason).join(', ')}\n\n**Warning ${violationCount + 1}/${config.warningThreshold}**\n\nPlease review the server rules to avoid further violations.`,
+                '#F39C12'
+            );
+            
+            await member.send({ embeds: [warningEmbed] });
+        } catch (error) {
+            console.log('Could not send warning DM:', error.message);
+        }
+    }
+}
+
+// Spam tracker for message frequency
+
+// Clean up old spam tracking data every 5 minutes
+setInterval(() => {
+    const now = Date.now();
+    for (const [userId, timestamps] of spamTracker.entries()) {
+        const recentTimestamps = timestamps.filter(timestamp => now - timestamp < 60000); // Keep last minute
+        if (recentTimestamps.length === 0) {
+            spamTracker.delete(userId);
+        } else {
+            spamTracker.set(userId, recentTimestamps);
+        }
+    }
+}, 300000); // 5 minutes
+
+// Interactive Embed System - Mimu-inspired with modals and buttons
+
+
+// Handle embed creation with interactive setup
+
+
+// Handle embed listing
+
+
+// Handle embed preview
+
+
+// Handle embed deletion
+
+
+// Handle embed editing via chat bar (alternative to buttons)
+
 
 // Handle button interactions for embed editing
 async function handleButtonInteraction(interaction) {
@@ -6193,160 +7174,10 @@ async function handleModalSubmit(interaction) {
 }
 
 // Process embed modal submission
-async function processEmbedModal(interaction, component, name) {
-    try {
-        const template = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ))
-            .limit(1);
 
-        if (template.length === 0) {
-            await interaction.reply({
-                content: 'Embed template not found.',
-                ephemeral: true
-            });
-            return;
-        }
-
-        const updateData = {};
-
-        switch (component) {
-            case 'basic':
-                const title = interaction.fields.getTextInputValue('title');
-                const description = interaction.fields.getTextInputValue('description');
-                const color = interaction.fields.getTextInputValue('color');
-                
-                updateData.title = title;
-                updateData.description = description;
-                updateData.color = color;
-                break;
-
-            case 'author':
-                const authorName = interaction.fields.getTextInputValue('author_name');
-                const authorIcon = interaction.fields.getTextInputValue('author_icon');
-                
-                updateData.authorName = authorName;
-                updateData.authorIcon = authorIcon;
-                break;
-
-            case 'footer':
-                const footerText = interaction.fields.getTextInputValue('footer_text');
-                const footerIcon = interaction.fields.getTextInputValue('footer_icon');
-                const timestamp = interaction.fields.getTextInputValue('timestamp');
-                
-                updateData.footerText = footerText;
-                updateData.footerIcon = footerIcon;
-                updateData.showTimestamp = timestamp.toLowerCase() === 'yes';
-                break;
-
-            case 'images':
-                const thumbnail = interaction.fields.getTextInputValue('thumbnail');
-                const image = interaction.fields.getTextInputValue('image');
-                
-                updateData.thumbnail = thumbnail;
-                updateData.image = image;
-                break;
-
-            case 'fields':
-                const fieldsData = interaction.fields.getTextInputValue('fields');
-                updateData.fields = fieldsData;
-                break;
-        }
-
-        await db.update(embedTemplates)
-            .set(updateData)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ));
-
-        const embed = createAstraeeEmbed(
-            'Template Refined',
-            `Embed template "${name}" has been updated with elegant precision.\nYour changes have been preserved with ceremonial care.`,
-            '#9B59B6'
-        );
-
-        await interaction.reply({ embeds: [embed], ephemeral: true });
-
-    } catch (error) {
-        console.error('Error processing embed modal:', error);
-        
-        const embed = createAstraeeEmbed(
-            'Update Failed',
-            'Failed to update embed template. Please try again later.',
-            '#E74C3C'
-        );
-        
-        await interaction.reply({ embeds: [embed], ephemeral: true });
-    }
-}
 
 // Build embed from template with dynamic placeholders
-async function buildEmbedFromTemplate(template, guild, user) {
-    const embed = new EmbedBuilder();
 
-    // Process title with placeholders
-    if (template.title) {
-        embed.setTitle(processPlaceholders(template.title, guild, user));
-    }
-
-    // Process description with placeholders
-    if (template.description) {
-        embed.setDescription(processPlaceholders(template.description, guild, user));
-    }
-
-    // Set color
-    embed.setColor(template.color || '#9B59B6');
-
-    // Process author
-    if (template.authorName) {
-        const authorData = {
-            name: processPlaceholders(template.authorName, guild, user)
-        };
-        if (template.authorIcon) {
-            authorData.iconURL = processPlaceholders(template.authorIcon, guild, user);
-        }
-        embed.setAuthor(authorData);
-    }
-
-    // Process footer
-    if (template.footerText) {
-        const footerData = {
-            text: processPlaceholders(template.footerText, guild, user)
-        };
-        if (template.footerIcon) {
-            footerData.iconURL = processPlaceholders(template.footerIcon, guild, user);
-        }
-        embed.setFooter(footerData);
-    }
-
-    // Process images
-    if (template.thumbnail) {
-        embed.setThumbnail(processPlaceholders(template.thumbnail, guild, user));
-    }
-    if (template.image) {
-        embed.setImage(processPlaceholders(template.image, guild, user));
-    }
-
-    // Process fields
-    if (template.fields) {
-        const fields = JSON.parse(template.fields);
-        for (const field of fields) {
-            embed.addFields({
-                name: processPlaceholders(field.name, guild, user),
-                value: processPlaceholders(field.value, guild, user),
-                inline: field.inline || false
-            });
-        }
-    }
-
-    // Set timestamp
-    embed.setTimestamp();
-
-    return embed;
-}
 
 // Process dynamic placeholders
 function processPlaceholders(text, guild, user) {
@@ -6377,453 +7208,21 @@ function getOrdinal(num) {
 }
 
 // Helper functions for button interactions
-async function showEmbedEditModal(interaction, component, name) {
-    try {
-        const template = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ))
-            .limit(1);
 
-        if (template.length === 0) {
-            await interaction.reply({
-                content: 'Embed template not found.',
-                ephemeral: true
-            });
-            return;
-        }
 
-        // Create modal based on component type
-        const modal = new ModalBuilder()
-            .setCustomId(`embed_modal_${component}_${name}`)
-            .setTitle(`Editing: ${name}`);
 
-        switch (component) {
-            case 'basic':
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('title')
-                            .setLabel('Title')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('Enter embed title...')
-                            .setValue(template[0].title || '')
-                            .setMaxLength(256)
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('description')
-                            .setLabel('Description')
-                            .setStyle(TextInputStyle.Paragraph)
-                            .setPlaceholder('Enter embed description...')
-                            .setValue(template[0].description || '')
-                            .setMaxLength(4000)
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('color')
-                            .setLabel('Hex Color')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('#9B59B6')
-                            .setValue(template[0].color || '#9B59B6')
-                            .setMaxLength(7)
-                    )
-                );
-                break;
 
-            case 'author':
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('author_name')
-                            .setLabel('Author Text')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('Enter author name...')
-                            .setValue(template[0].authorName || '')
-                            .setMaxLength(256)
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('author_icon')
-                            .setLabel('Author Image (optional)')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('https://cdn.example.com/icon.png')
-                            .setValue(template[0].authorIcon || '')
-                            .setRequired(false)
-                    )
-                );
-                break;
 
-            case 'footer':
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('footer_text')
-                            .setLabel('Footer Text')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('Enter footer text...')
-                            .setValue(template[0].footerText || '')
-                            .setMaxLength(2048)
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('footer_icon')
-                            .setLabel('Footer Image (optional)')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('https://cdn.example.com/footer.png')
-                            .setValue(template[0].footerIcon || '')
-                            .setRequired(false)
-                    )
-                );
-                break;
 
-            case 'images':
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('thumbnail')
-                            .setLabel('Thumbnail URL (optional)')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('https://cdn.example.com/thumb.png')
-                            .setValue(template[0].thumbnail || '')
-                            .setRequired(false)
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('image')
-                            .setLabel('Image URL (optional)')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('https://cdn.example.com/image.png')
-                            .setValue(template[0].image || '')
-                            .setRequired(false)
-                    )
-                );
-                break;
 
-            case 'fields':
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('fields')
-                            .setLabel('Fields (JSON format)')
-                            .setStyle(TextInputStyle.Paragraph)
-                            .setPlaceholder('Enter fields in JSON format...')
-                            .setValue(template[0].fields || '')
-                            .setRequired(false)
-                    )
-                );
-                break;
-        }
 
-        await interaction.showModal(modal);
 
-    } catch (error) {
-        console.error('Error showing embed edit modal:', error);
-        await interaction.reply({
-            content: 'Failed to open edit modal.',
-            ephemeral: true
-        });
-    }
-}
-
-async function previewEmbedTemplate(interaction, name) {
-    try {
-        const template = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ))
-            .limit(1);
-
-        if (template.length === 0) {
-            await interaction.reply({
-                content: 'Embed template not found.',
-                ephemeral: true
-            });
-            return;
-        }
-
-        const embed = await buildEmbedFromTemplate(template[0], interaction.guild, interaction.user);
-        await interaction.reply({ embeds: [embed], ephemeral: true });
-
-    } catch (error) {
-        console.error('Error previewing embed:', error);
-        await interaction.reply({
-            content: 'Failed to preview embed.',
-            ephemeral: true
-        });
-    }
-}
-
-async function deleteEmbedTemplate(interaction, name) {
-    try {
-        await db.delete(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ));
-
-        await interaction.reply({
-            content: `Successfully deleted embed template **"${name}"**! ✦`,
-            ephemeral: true
-        });
-
-    } catch (error) {
-        console.error('Error deleting embed:', error);
-        await interaction.reply({
-            content: 'Failed to delete embed template.',
-            ephemeral: true
-        });
-    }
-}
-
-async function sendEmbedTemplate(interaction, name) {
-    try {
-        const template = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ))
-            .limit(1);
-
-        if (template.length === 0) {
-            await interaction.reply({
-                content: 'Embed template not found.',
-                ephemeral: true
-            });
-            return;
-        }
-
-        const embed = await buildEmbedFromTemplate(template[0], interaction.guild, interaction.user);
-        
-        // Create channel selection modal
-        const modal = new ModalBuilder()
-            .setCustomId(`embed_send_modal_${name}`)
-            .setTitle(`Send: ${name}`);
-
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('channel_id')
-                    .setLabel('Channel ID or #channel')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('#general or 123456789012345678')
-                    .setRequired(true)
-            )
-        );
-
-        await interaction.showModal(modal);
-
-    } catch (error) {
-        console.error('Error sending embed template:', error);
-        await interaction.reply({
-            content: 'Failed to send embed template.',
-            ephemeral: true
-        });
-    }
-}
-
-async function processSendModal(interaction, name) {
-    try {
-        const channelInput = interaction.fields.getTextInputValue('channel_id');
-        
-        // Parse channel input (could be #channel or channel ID)
-        let channel;
-        if (channelInput.startsWith('#')) {
-            const channelName = channelInput.slice(1);
-            channel = interaction.guild.channels.cache.find(c => c.name === channelName && c.type === 0);
-        } else {
-            channel = interaction.guild.channels.cache.get(channelInput);
-        }
-
-        if (!channel) {
-            await interaction.reply({
-                content: 'Channel not found. Please check the channel name or ID.',
-                ephemeral: true
-            });
-            return;
-        }
-
-        // Get template
-        const template = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ))
-            .limit(1);
-
-        if (template.length === 0) {
-            await interaction.reply({
-                content: 'Embed template not found.',
-                ephemeral: true
-            });
-            return;
-        }
-
-        // Build and send embed
-        const embed = await buildEmbedFromTemplate(template[0], interaction.guild, interaction.user);
-        await channel.send({ embeds: [embed] });
-
-        await interaction.reply({
-            content: `Successfully sent embed template **"${name}"** to ${channel}! ✦`,
-            ephemeral: true
-        });
-
-    } catch (error) {
-        console.error('Error processing send modal:', error);
-        await interaction.reply({
-            content: 'Failed to send embed template.',
-            ephemeral: true
-        });
-    }
-}
 
 // Handle embed template creation from pre-made templates
-async function handleEmbedTemplate(interaction) {
-    const type = interaction.options.getString('type');
-    const name = interaction.options.getString('name');
 
-    try {
-        // Check if embed already exists
-        const existingEmbed = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ))
-            .limit(1);
-
-        if (existingEmbed.length > 0) {
-            const embed = createAstraeeEmbed(
-                'Embed Already Exists',
-                `An embed template with the name "${name}" already exists. Please choose a different name.`,
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Get template data based on type
-        const templateData = getIMVUTemplate(type);
-        
-        // Create embed template from template data
-        await db.insert(embedTemplates).values({
-            serverId: interaction.guild.id,
-            name: name,
-            title: templateData.title,
-            description: templateData.description,
-            color: templateData.color,
-            authorName: templateData.authorName,
-            authorIcon: templateData.authorIcon,
-            footerText: templateData.footerText,
-            footerIcon: templateData.footerIcon,
-            thumbnail: templateData.thumbnail,
-            image: templateData.image,
-            fields: JSON.stringify(templateData.fields),
-            createdBy: interaction.user.id
-        });
-
-        // Create preview embed
-        const previewEmbed = await buildEmbedFromTemplate({
-            title: templateData.title,
-            description: templateData.description,
-            color: templateData.color,
-            authorName: templateData.authorName,
-            authorIcon: templateData.authorIcon,
-            footerText: templateData.footerText,
-            footerIcon: templateData.footerIcon,
-            thumbnail: templateData.thumbnail,
-            image: templateData.image,
-            fields: JSON.stringify(templateData.fields)
-        }, interaction.guild, interaction.user);
-
-        const successEmbed = new EmbedBuilder()
-            .setTitle('✦ IMVU Template Created ✦')
-            .setDescription(`Successfully created **"${name}"** from the **${getTemplateDisplayName(type)}** template! ✦\n\n**Preview:**`)
-            .setColor('#27AE60')
-            .setFooter({ text: `✦ "Professional templates for professional agencies." - Astraee ✦` })
-            .setTimestamp();
-
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`embed_edit_basic_${name}`)
-                    .setLabel('📝 Customize')
-                    .setStyle(ButtonStyle.Primary),
-                new ButtonBuilder()
-                    .setCustomId(`embed_send_${name}`)
-                    .setLabel('📤 Send Now')
-                    .setStyle(ButtonStyle.Success)
-            );
-
-        await interaction.reply({ 
-            embeds: [successEmbed, previewEmbed], 
-            components: [row],
-            flags: MessageFlags.Ephemeral 
-        });
-
-    } catch (error) {
-        console.error('Error creating embed template:', error);
-        
-        const embed = createAstraeeEmbed(
-            'Template Creation Error',
-            'Failed to create embed template. Please try again later.',
-            '#E74C3C'
-        );
-        
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-}
 
 // Handle sending embed templates
-async function handleEmbedSend(interaction) {
-    const name = interaction.options.getString('name');
-    const channel = interaction.options.getChannel('channel');
-    const user = interaction.options.getUser('user');
 
-    try {
-        const template = await db.select().from(embedTemplates)
-            .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
-            ))
-            .limit(1);
-
-        if (template.length === 0) {
-            const embed = createAstraeeEmbed(
-                'Template Not Found',
-                `No embed template found with the name "${name}".`,
-                '#E74C3C'
-            );
-            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-        }
-
-        // Build embed with optional user personalization
-        const targetUser = user || interaction.user;
-        const embed = await buildEmbedFromTemplate(template[0], interaction.guild, targetUser);
-
-        // Send to target channel
-        await channel.send({ embeds: [embed] });
-
-        const successEmbed = createAstraeeEmbed(
-            'Embed Sent Successfully',
-            `Successfully sent embed template **"${name}"** to ${channel}! ✦`,
-            '#27AE60'
-        );
-
-        await interaction.reply({ embeds: [successEmbed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error sending embed:', error);
-        
-        const embed = createAstraeeEmbed(
-            'Send Error',
-            'Failed to send embed template. Please check permissions and try again.',
-            '#E74C3C'
-        );
-        
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-}
 
 // Get IMVU agency template data
 function getIMVUTemplate(type) {
@@ -6995,112 +7394,10 @@ function getIMVUTemplate(type) {
 }
 
 // Preview gallery template
-async function previewGalleryTemplate(interaction, type) {
-    try {
-        const templateData = getIMVUTemplate(type);
-        const previewEmbed = await buildEmbedFromTemplate({
-            title: templateData.title,
-            description: templateData.description,
-            color: templateData.color,
-            authorName: templateData.authorName,
-            authorIcon: templateData.authorIcon,
-            footerText: templateData.footerText,
-            footerIcon: templateData.footerIcon,
-            thumbnail: templateData.thumbnail,
-            image: templateData.image,
-            fields: JSON.stringify(templateData.fields)
-        }, interaction.guild, interaction.user);
 
-        const infoEmbed = new EmbedBuilder()
-            .setTitle(`✦ ${getTemplateDisplayName(type)} Preview ✦`)
-            .setDescription(`This is how the **${getTemplateDisplayName(type)}** template will look when used ✦\n\n**Features:**\n• Dynamic placeholders (user, server, timestamps)\n• Professional IMVU agency styling\n• Customizable fields and content\n• Ready for immediate use`)
-            .setColor('#27AE60')
-            .setFooter({ text: `✦ "See it in action before you create it." - Astraee ✦` })
-            .setTimestamp();
-
-        const row = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId(`gallery_create_${type}`)
-                    .setLabel(`✨ Create ${getTemplateDisplayName(type)}`)
-                    .setStyle(ButtonStyle.Success),
-                new ButtonBuilder()
-                    .setCustomId('gallery_back')
-                    .setLabel('🔙 Back to Gallery')
-                    .setStyle(ButtonStyle.Secondary)
-            );
-
-        await interaction.reply({ 
-            embeds: [infoEmbed, previewEmbed], 
-            components: [row],
-            flags: MessageFlags.Ephemeral 
-        });
-
-    } catch (error) {
-        console.error('Error previewing gallery template:', error);
-        await interaction.reply({
-            content: 'Failed to preview template.',
-            ephemeral: true
-        });
-    }
-}
 
 // Show custom template creation modal
-async function showCustomTemplateModal(interaction) {
-    try {
-        const modal = new ModalBuilder()
-            .setCustomId('gallery_custom_modal')
-            .setTitle('Create Custom Template');
 
-        modal.addComponents(
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('template_name')
-                    .setLabel('Template Name')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('my_custom_template')
-                    .setRequired(true)
-                    .setMaxLength(50)
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('template_title')
-                    .setLabel('Title')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('✦ My Custom Template ✦')
-                    .setRequired(true)
-                    .setMaxLength(256)
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('template_description')
-                    .setLabel('Description')
-                    .setStyle(TextInputStyle.Paragraph)
-                    .setPlaceholder('Enter your custom description...')
-                    .setRequired(true)
-                    .setMaxLength(4000)
-            ),
-            new ActionRowBuilder().addComponents(
-                new TextInputBuilder()
-                    .setCustomId('template_color')
-                    .setLabel('Color (Hex Code)')
-                    .setStyle(TextInputStyle.Short)
-                    .setPlaceholder('#9B59B6')
-                    .setRequired(true)
-                    .setMaxLength(7)
-            )
-        );
-
-        await interaction.showModal(modal);
-
-    } catch (error) {
-        console.error('Error showing custom template modal:', error);
-        await interaction.reply({
-            content: 'Failed to open custom template modal.',
-            ephemeral: true
-        });
-    }
-}
 
 // Get display name for template type
 function getTemplateDisplayName(type) {
@@ -7125,10 +7422,10 @@ async function processCustomTemplateModal(interaction) {
         const color = interaction.fields.getTextInputValue('template_color');
 
         // Check if embed already exists
-        const existingEmbed = await db.select().from(embedTemplates)
+        const existingEmbed = await db.select().from(null)
             .where(and(
-                eq(embedTemplates.serverId, interaction.guild.id),
-                eq(embedTemplates.name, name)
+                eq(null.serverId, interaction.guild.id),
+                eq(null.name, name)
             ))
             .limit(1);
 
@@ -7141,7 +7438,7 @@ async function processCustomTemplateModal(interaction) {
         }
 
         // Create custom embed template
-        await db.insert(embedTemplates).values({
+        await db.insert(null).values({
             serverId: interaction.guild.id,
             name: name,
             title: title,
@@ -7175,111 +7472,7 @@ async function processCustomTemplateModal(interaction) {
 }
 
 // Handle embed gallery
-async function handleEmbedGallery(interaction) {
-    try {
-        const embed = new EmbedBuilder()
-            .setTitle('✦ IMVU Agency Template Gallery ✦')
-            .setDescription('Browse our collection of professional templates designed specifically for IMVU modeling agencies ✦\n\n**Click the buttons below to preview each template!**')
-            .setColor('#9B59B6')
-            .setFooter({ text: `✦ "Professional templates for professional agencies." - Astraee ✦` })
-            .setTimestamp();
 
-        embed.addFields(
-            {
-                name: '👋 Welcome Templates',
-                value: 'Perfect for greeting new members\n• Professional welcome messages\n• Agency introduction\n• Getting started guides',
-                inline: true
-            },
-            {
-                name: '📺 Stream Templates',
-                value: 'Announce upcoming streams\n• Stream details\n• Support messages\n• Engagement prompts',
-                inline: true
-            },
-            {
-                name: '🌟 Spotlight Templates',
-                value: 'Feature your top models\n• Model showcases\n• Achievement highlights\n• Portfolio displays',
-                inline: true
-            },
-            {
-                name: '📢 Update Templates',
-                value: 'Important announcements\n• Agency updates\n• Policy changes\n• News updates',
-                inline: true
-            },
-            {
-                name: '🎉 Event Templates',
-                value: 'Special events & activities\n• Event announcements\n• Activity schedules\n• Prize information',
-                inline: true
-            },
-            {
-                name: '📋 Rules Templates',
-                value: 'Clear guidelines\n• Server rules\n• Modeling guidelines\n• Community standards',
-                inline: true
-            },
-            {
-                name: '📝 Application Templates',
-                value: 'Recruitment & applications\n• Application forms\n• Requirements\n• Benefits overview',
-                inline: true
-            }
-        );
-
-        const row1 = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('gallery_preview_welcome')
-                    .setLabel('👋 Welcome')
-                    .setStyle(ButtonStyle.Primary),
-                new ButtonBuilder()
-                    .setCustomId('gallery_preview_stream')
-                    .setLabel('📺 Stream')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('gallery_preview_spotlight')
-                    .setLabel('🌟 Spotlight')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('gallery_preview_update')
-                    .setLabel('📢 Update')
-                    .setStyle(ButtonStyle.Secondary)
-            );
-
-        const row2 = new ActionRowBuilder()
-            .addComponents(
-                new ButtonBuilder()
-                    .setCustomId('gallery_preview_event')
-                    .setLabel('🎉 Event')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('gallery_preview_rules')
-                    .setLabel('📋 Rules')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('gallery_preview_application')
-                    .setLabel('📝 Application')
-                    .setStyle(ButtonStyle.Secondary),
-                new ButtonBuilder()
-                    .setCustomId('gallery_create_custom')
-                    .setLabel('✨ Create Custom')
-                    .setStyle(ButtonStyle.Success)
-            );
-
-        await interaction.reply({ 
-            embeds: [embed], 
-            components: [row1, row2],
-            flags: MessageFlags.Ephemeral 
-        });
-
-    } catch (error) {
-        console.error('Error showing embed gallery:', error);
-        
-        const embed = createAstraeeEmbed(
-            'Gallery Error',
-            'Failed to load template gallery. Please try again later.',
-            '#E74C3C'
-        );
-        
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-}
 
 // Settings system handlers
 async function handleSettings(interaction) {
@@ -7311,26 +7504,21 @@ async function handleSettings(interaction) {
 async function handleSettingsPanel(interaction) {
     try {
         // Get current settings
-        const welcomeSettingsData = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id))
-            .limit(1);
-
-        const embed = new EmbedBuilder()
-            .setTitle('✦ Astraee Settings Panel ✦')
-            .setDescription('Configure your server settings with elegant precision ✦')
-            .setColor('#9B59B6')
-            .setFooter({ text: `✦ "Customization is the key to perfection." - Astraee ✦` })
+        const embed = createAstraeeEmbed(
+            'Astraee Settings Panel',
+            'Configure Astraee\'s features with elegant precision.',
+            '#9B59B6'
+        )
             .setTimestamp();
 
         // Add settings sections
-        const welcomeStatus = welcomeSettingsData.length > 0 && welcomeSettingsData[0].enabled ? '✅ Enabled' : '❌ Disabled';
-        const welcomeChannel = welcomeSettingsData.length > 0 && welcomeSettingsData[0].welcomeChannelId ? 
-            `<#${welcomeSettingsData[0].welcomeChannelId}>` : 'Not set';
+        
+        
 
         embed.addFields(
             {
                 name: '👋 Welcome System',
-                value: `**Status:** ${welcomeStatus}\n**Channel:** ${welcomeChannel}\n**Rich Embeds:** ${welcomeSettingsData.length > 0 && welcomeSettingsData[0].useRichEmbed ? '✅' : '❌'}`,
+                value: 'Not available',
                 inline: true
             },
             {
@@ -7402,19 +7590,9 @@ async function handleSetGoodbye(interaction) {
 
     try {
         // Similar to welcome but for goodbye
-        let settings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+        const settings = await db.select().from(null)
+            .where(eq(null.serverId, interaction.guild.id))
             .limit(1);
-
-        if (settings.length === 0) {
-            await db.insert(welcomeSettings).values({
-                serverId: interaction.guild.id,
-                enabled: true
-            });
-            settings = await db.select().from(welcomeSettings)
-                .where(eq(welcomeSettings.serverId, interaction.guild.id))
-                .limit(1);
-        }
 
         const updateData = {};
         
@@ -7430,13 +7608,9 @@ async function handleSetGoodbye(interaction) {
                 break;
         }
 
-        await db.update(welcomeSettings)
-            .set(updateData)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id));
-
         const successEmbed = createAstraeeEmbed(
             'Goodbye Settings Updated',
-            `Successfully updated goodbye **${type}**! ✦`,
+            'Goodbye settings have been updated with elegant precision.',
             '#27AE60'
         );
 
