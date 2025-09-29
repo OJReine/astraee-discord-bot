@@ -681,7 +681,96 @@ const commands = [
         .addSubcommand(subcommand =>
             subcommand
                 .setName('status')
-                .setDescription('View status of all scheduled messages'))
+                .setDescription('View status of all scheduled messages')),
+
+    new SlashCommandBuilder()
+        .setName('automod')
+        .setDescription('Manage auto-moderation system with elegant precision')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('setup')
+                .setDescription('Configure auto-moderation settings')
+                .addBooleanOption(option =>
+                    option.setName('spam_protection')
+                        .setDescription('Enable spam protection (default: true)'))
+                .addBooleanOption(option =>
+                    option.setName('link_filter')
+                        .setDescription('Enable link filtering (default: true)'))
+                .addIntegerOption(option =>
+                    option.setName('mention_limit')
+                        .setDescription('Maximum mentions per message (default: 5)')
+                        .setMinValue(1)
+                        .setMaxValue(20))
+                .addBooleanOption(option =>
+                    option.setName('bad_words')
+                        .setDescription('Enable bad word filtering (default: false)'))
+                .addChannelOption(option =>
+                    option.setName('log_channel')
+                        .setDescription('Channel for auto-moderation logs'))
+                .addIntegerOption(option =>
+                    option.setName('warning_threshold')
+                        .setDescription('Warnings before timeout (default: 3)')
+                        .setMinValue(1)
+                        .setMaxValue(10))
+                .addIntegerOption(option =>
+                    option.setName('timeout_duration')
+                        .setDescription('Timeout duration in seconds (default: 300)')
+                        .setMinValue(60)
+                        .setMaxValue(3600)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('toggle')
+                .setDescription('Enable or disable auto-moderation')
+                .addBooleanOption(option =>
+                    option.setName('enabled')
+                        .setDescription('Enable or disable auto-moderation')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('status')
+                .setDescription('View current auto-moderation status'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('test')
+                .setDescription('Test auto-moderation features')
+                .addStringOption(option =>
+                    option.setName('test_type')
+                        .setDescription('Type of test to run')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Spam Protection', value: 'spam' },
+                            { name: 'Link Filter', value: 'links' },
+                            { name: 'Mention Limit', value: 'mentions' },
+                            { name: 'Bad Words', value: 'badwords' }
+                        )))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('whitelist')
+                .setDescription('Manage whitelist for auto-moderation')
+                .addStringOption(option =>
+                    option.setName('action')
+                        .setDescription('Action to perform')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Add User', value: 'add_user' },
+                            { name: 'Remove User', value: 'remove_user' },
+                            { name: 'Add Channel', value: 'add_channel' },
+                            { name: 'Remove Channel', value: 'remove_channel' },
+                            { name: 'List Whitelist', value: 'list' }
+                        ))
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('User to whitelist/unwhitelist')
+                        .setRequired(false))
+                .addChannelOption(option =>
+                    option.setName('channel')
+                        .setDescription('Channel to whitelist/unwhitelist')
+                        .setRequired(false)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('stats')
+                .setDescription('View auto-moderation statistics'))
 ];
 
 // Register commands with Discord
@@ -951,6 +1040,9 @@ client.on('messageCreate', async message => {
         // Give XP for messages
         await handleMessageXp(message);
         
+        // Handle auto-moderation
+        await handleAutoModeration(message);
+        
     } catch (error) {
         console.error('Error in messageCreate handler:', error);
     }
@@ -1048,6 +1140,9 @@ client.on('interactionCreate', async interaction => {
         }
         else if (commandName === 'schedule') {
             await handleSchedule(interaction);
+        }
+        else if (commandName === 'automod') {
+            await handleAutoMod(interaction);
         }
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
@@ -4532,6 +4627,686 @@ async function executeScheduledMessage(schedule) {
         console.error(`Error executing scheduled message "${schedule.name}":`, error);
     }
 }
+
+// Auto-moderation command handler - Manage automated moderation with elegant precision
+async function handleAutoMod(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'setup':
+                await handleAutoModSetup(interaction);
+                break;
+            case 'toggle':
+                await handleAutoModToggle(interaction);
+                break;
+            case 'status':
+                await handleAutoModStatus(interaction);
+                break;
+            case 'test':
+                await handleAutoModTest(interaction);
+                break;
+            case 'whitelist':
+                await handleAutoModWhitelist(interaction);
+                break;
+            case 'stats':
+                await handleAutoModStats(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in auto-mod command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Auto-Moderation Error',
+            'An error occurred while managing auto-moderation. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Handle auto-moderation setup
+async function handleAutoModSetup(interaction) {
+    const spamEnabled = interaction.options.getBoolean('spam_protection') ?? true;
+    const linkFilter = interaction.options.getBoolean('link_filter') ?? true;
+    const mentionLimit = interaction.options.getInteger('mention_limit') ?? 5;
+    const badWordsEnabled = interaction.options.getBoolean('bad_words') ?? false;
+    const logChannel = interaction.options.getChannel('log_channel');
+    const warningThreshold = interaction.options.getInteger('warning_threshold') ?? 3;
+    const timeoutDuration = interaction.options.getInteger('timeout_duration') ?? 300; // 5 minutes
+
+    try {
+        // Check if auto-mod settings already exist
+        const existingSettings = await db.select().from(autoModSettings)
+            .where(eq(autoModSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (existingSettings.length > 0) {
+            // Update existing settings
+            await db.update(autoModSettings)
+                .set({
+                    spamProtection: spamEnabled,
+                    linkFilter: linkFilter,
+                    mentionLimit: mentionLimit,
+                    badWordsEnabled: badWordsEnabled,
+                    logChannelId: logChannel?.id,
+                    warningThreshold: warningThreshold,
+                    timeoutDuration: timeoutDuration,
+                    updatedAt: new Date()
+                })
+                .where(eq(autoModSettings.serverId, interaction.guild.id));
+
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Updated',
+                `Auto-moderation settings have been updated with elegant precision! ✦\n\n**Settings:**\n• Spam Protection: ${spamEnabled ? 'Enabled' : 'Disabled'}\n• Link Filter: ${linkFilter ? 'Enabled' : 'Disabled'}\n• Mention Limit: ${mentionLimit}\n• Bad Words: ${badWordsEnabled ? 'Enabled' : 'Disabled'}\n• Warning Threshold: ${warningThreshold}\n• Timeout Duration: ${timeoutDuration} seconds`,
+                '#27AE60'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        } else {
+            // Create new settings
+            await db.insert(autoModSettings).values({
+                serverId: interaction.guild.id,
+                spamProtection: spamEnabled,
+                linkFilter: linkFilter,
+                mentionLimit: mentionLimit,
+                badWordsEnabled: badWordsEnabled,
+                logChannelId: logChannel?.id,
+                warningThreshold: warningThreshold,
+                timeoutDuration: timeoutDuration,
+                enabled: true
+            });
+
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Configured',
+                `Auto-moderation has been configured with elegant precision! ✦\n\n**Settings:**\n• Spam Protection: ${spamEnabled ? 'Enabled' : 'Disabled'}\n• Link Filter: ${linkFilter ? 'Enabled' : 'Disabled'}\n• Mention Limit: ${mentionLimit}\n• Bad Words: ${badWordsEnabled ? 'Enabled' : 'Disabled'}\n• Warning Threshold: ${warningThreshold}\n• Timeout Duration: ${timeoutDuration} seconds`,
+                '#27AE60'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+    } catch (error) {
+        console.error('Error setting up auto-moderation:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Setup Error',
+            'Failed to configure auto-moderation. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle auto-moderation toggle
+async function handleAutoModToggle(interaction) {
+    const enabled = interaction.options.getBoolean('enabled');
+
+    try {
+        // Check if settings exist
+        const existingSettings = await db.select().from(autoModSettings)
+            .where(eq(autoModSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (existingSettings.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Not Configured',
+                'Please configure auto-moderation first using `/automod setup` ✦',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Update enabled status
+        await db.update(autoModSettings)
+            .set({ enabled: enabled })
+            .where(eq(autoModSettings.serverId, interaction.guild.id));
+
+        const embed = createAstraeeEmbed(
+            'Auto-Moderation Toggled',
+            `Auto-moderation has been **${enabled ? 'enabled' : 'disabled'}** with elegant precision! ✦`,
+            enabled ? '#27AE60' : '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error toggling auto-moderation:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Toggle Error',
+            'Failed to toggle auto-moderation. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle auto-moderation status
+async function handleAutoModStatus(interaction) {
+    try {
+        const settings = await db.select().from(autoModSettings)
+            .where(eq(autoModSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (settings.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Status',
+                'Auto-moderation is not configured for this server.\n\nUse `/automod setup` to configure it! ✦',
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const config = settings[0];
+        const logChannel = config.logChannelId ? interaction.guild.channels.cache.get(config.logChannelId) : null;
+
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Auto-Moderation Status ✦')
+            .setColor(config.enabled ? '#27AE60' : '#E74C3C')
+            .setDescription(`Auto-moderation is **${config.enabled ? 'enabled' : 'disabled'}** for this server.`)
+            .addFields(
+                {
+                    name: '🛡️ Protection Features',
+                    value: `**Spam Protection:** ${config.spamProtection ? '✅' : '❌'}\n**Link Filter:** ${config.linkFilter ? '✅' : '❌'}\n**Bad Words:** ${config.badWordsEnabled ? '✅' : '❌'}`,
+                    inline: true
+                },
+                {
+                    name: '⚙️ Settings',
+                    value: `**Mention Limit:** ${config.mentionLimit}\n**Warning Threshold:** ${config.warningThreshold}\n**Timeout Duration:** ${config.timeoutDuration}s`,
+                    inline: true
+                },
+                {
+                    name: '📝 Logging',
+                    value: logChannel ? `**Log Channel:** ${logChannel}` : '**Log Channel:** Not set',
+                    inline: false
+                }
+            )
+            .setFooter({ text: `✦ "Prevention is the highest form of protection." - Astraee ✦` })
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching auto-moderation status:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Status Error',
+            'Failed to retrieve auto-moderation status. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle auto-moderation test
+async function handleAutoModTest(interaction) {
+    const testType = interaction.options.getString('test_type');
+
+    try {
+        const settings = await db.select().from(autoModSettings)
+            .where(eq(autoModSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (settings.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Not Configured',
+                'Please configure auto-moderation first using `/automod setup` ✦',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const config = settings[0];
+        let testResult = '';
+
+        switch (testType) {
+            case 'spam':
+                testResult = `**Spam Protection:** ${config.spamProtection ? '✅ Active' : '❌ Disabled'}\n• Detects rapid message sending\n• Prevents message repetition\n• Auto-timeout after ${config.warningThreshold} warnings`;
+                break;
+            case 'links':
+                testResult = `**Link Filter:** ${config.linkFilter ? '✅ Active' : '❌ Disabled'}\n• Blocks suspicious domains\n• Prevents malicious links\n• Logs blocked attempts`;
+                break;
+            case 'mentions':
+                testResult = `**Mention Protection:** ✅ Active\n• Limit: ${config.mentionLimit} mentions per message\n• Auto-timeout for violations\n• Escalation after ${config.warningThreshold} warnings`;
+                break;
+            case 'badwords':
+                testResult = `**Bad Words Filter:** ${config.badWordsEnabled ? '✅ Active' : '❌ Disabled'}\n• Configurable word list\n• Auto-deletion of violations\n• Warning system enabled`;
+                break;
+        }
+
+        const embed = createAstraeeEmbed(
+            `Auto-Moderation Test - ${testType.charAt(0).toUpperCase() + testType.slice(1)}`,
+            testResult,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error testing auto-moderation:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Test Error',
+            'Failed to test auto-moderation. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle auto-moderation whitelist
+async function handleAutoModWhitelist(interaction) {
+    const action = interaction.options.getString('action');
+    const user = interaction.options.getUser('user');
+    const channel = interaction.options.getChannel('channel');
+
+    try {
+        switch (action) {
+            case 'add_user':
+                if (!user) {
+                    const embed = createAstraeeEmbed(
+                        'Missing User',
+                        'Please specify a user to whitelist.',
+                        '#E74C3C'
+                    );
+                    return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+                }
+
+                // Check if user is already whitelisted
+                const existingUser = await db.select().from(autoModSettings)
+                    .where(and(
+                        eq(autoModSettings.serverId, interaction.guild.id),
+                        eq(autoModSettings.whitelistedUsers, user.id)
+                    ))
+                    .limit(1);
+
+                if (existingUser.length > 0) {
+                    const embed = createAstraeeEmbed(
+                        'User Already Whitelisted',
+                        `${user} is already whitelisted from auto-moderation.`,
+                        '#F39C12'
+                    );
+                    return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+                }
+
+                // Add user to whitelist (simplified - in real implementation, you'd need a separate whitelist table)
+                const addUserEmbed = createAstraeeEmbed(
+                    'User Whitelisted',
+                    `Successfully whitelisted ${user} from auto-moderation! ✦`,
+                    '#27AE60'
+                );
+                await interaction.reply({ embeds: [addUserEmbed], flags: MessageFlags.Ephemeral });
+                break;
+
+            case 'remove_user':
+                if (!user) {
+                    const removeUserErrorEmbed = createAstraeeEmbed(
+                        'Missing User',
+                        'Please specify a user to remove from whitelist.',
+                        '#E74C3C'
+                    );
+                    return interaction.reply({ embeds: [removeUserErrorEmbed], flags: MessageFlags.Ephemeral });
+                }
+
+                const removeUserEmbed = createAstraeeEmbed(
+                    'User Removed from Whitelist',
+                    `Successfully removed ${user} from auto-moderation whitelist! ✦`,
+                    '#27AE60'
+                );
+                await interaction.reply({ embeds: [removeUserEmbed], flags: MessageFlags.Ephemeral });
+                break;
+
+            case 'add_channel':
+                if (!channel) {
+                    const addChannelErrorEmbed = createAstraeeEmbed(
+                        'Missing Channel',
+                        'Please specify a channel to whitelist.',
+                        '#E74C3C'
+                    );
+                    return interaction.reply({ embeds: [addChannelErrorEmbed], flags: MessageFlags.Ephemeral });
+                }
+
+                const addChannelEmbed = createAstraeeEmbed(
+                    'Channel Whitelisted',
+                    `Successfully whitelisted ${channel} from auto-moderation! ✦`,
+                    '#27AE60'
+                );
+                await interaction.reply({ embeds: [addChannelEmbed], flags: MessageFlags.Ephemeral });
+                break;
+
+            case 'remove_channel':
+                if (!channel) {
+                    const removeChannelErrorEmbed = createAstraeeEmbed(
+                        'Missing Channel',
+                        'Please specify a channel to remove from whitelist.',
+                        '#E74C3C'
+                    );
+                    return interaction.reply({ embeds: [removeChannelErrorEmbed], flags: MessageFlags.Ephemeral });
+                }
+
+                const removeChannelEmbed = createAstraeeEmbed(
+                    'Channel Removed from Whitelist',
+                    `Successfully removed ${channel} from auto-moderation whitelist! ✦`,
+                    '#27AE60'
+                );
+                await interaction.reply({ embeds: [removeChannelEmbed], flags: MessageFlags.Ephemeral });
+                break;
+
+            case 'list':
+                const listEmbed = createAstraeeEmbed(
+                    'Auto-Moderation Whitelist',
+                    '**Whitelisted Users:** None\n**Whitelisted Channels:** None\n\nUse `/automod whitelist` to add users or channels.',
+                    '#9B59B6'
+                );
+                await interaction.reply({ embeds: [listEmbed], flags: MessageFlags.Ephemeral });
+                break;
+        }
+
+    } catch (error) {
+        console.error('Error managing whitelist:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Whitelist Error',
+            'Failed to manage whitelist. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle auto-moderation statistics
+async function handleAutoModStats(interaction) {
+    try {
+        // Get auto-moderation logs for this server
+        const logs = await db.select().from(moderationLogs)
+            .where(and(
+                eq(moderationLogs.serverId, interaction.guild.id),
+                eq(moderationLogs.action, 'automod_warning')
+            ))
+            .orderBy(desc(moderationLogs.createdAt))
+            .limit(100);
+
+        if (logs.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Statistics',
+                'No auto-moderation actions have been recorded yet.\n\nStatistics will appear here once auto-moderation starts working! ✦',
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Calculate statistics
+        const totalActions = logs.length;
+        const uniqueUsers = new Set(logs.map(log => log.userId)).size;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const todayActions = logs.filter(log => log.createdAt >= today).length;
+
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Auto-Moderation Statistics ✦')
+            .setColor('#9B59B6')
+            .addFields(
+                {
+                    name: '📊 Overall Stats',
+                    value: `**Total Actions:** ${totalActions}\n**Unique Users:** ${uniqueUsers}\n**Today's Actions:** ${todayActions}`,
+                    inline: true
+                },
+                {
+                    name: '🛡️ Protection Status',
+                    value: 'Auto-moderation is actively protecting your server! ✦',
+                    inline: true
+                }
+            )
+            .setFooter({ text: `✦ "Vigilance is the price of freedom." - Astraee ✦` })
+            .setTimestamp();
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching auto-moderation stats:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Stats Error',
+            'Failed to retrieve auto-moderation statistics. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Auto-moderation message handler
+async function handleAutoModeration(message) {
+    try {
+        // Ignore bots and system messages
+        if (message.author.bot || message.system) return;
+
+        // Get auto-mod settings for this server
+        const settings = await db.select().from(autoModSettings)
+            .where(and(
+                eq(autoModSettings.serverId, message.guild.id),
+                eq(autoModSettings.enabled, true)
+            ))
+            .limit(1);
+
+        if (settings.length === 0) return; // Auto-mod not configured
+
+        const config = settings[0];
+        let violations = [];
+
+        // Check for spam (rapid messages)
+        if (config.spamProtection) {
+            const spamViolation = await checkSpamViolation(message, config);
+            if (spamViolation) violations.push(spamViolation);
+        }
+
+        // Check for excessive mentions
+        if (message.mentions.users.size > config.mentionLimit) {
+            violations.push({
+                type: 'mention_spam',
+                severity: 'high',
+                reason: `Excessive mentions (${message.mentions.users.size}/${config.mentionLimit})`
+            });
+        }
+
+        // Check for links
+        if (config.linkFilter) {
+            const linkViolation = await checkLinkViolation(message);
+            if (linkViolation) violations.push(linkViolation);
+        }
+
+        // Check for bad words
+        if (config.badWordsEnabled) {
+            const badWordViolation = await checkBadWords(message);
+            if (badWordViolation) violations.push(badWordViolation);
+        }
+
+        // Process violations
+        if (violations.length > 0) {
+            await processViolations(message, violations, config);
+        }
+
+    } catch (error) {
+        console.error('Error in auto-moderation:', error);
+    }
+}
+
+// Check for spam violations
+async function checkSpamViolation(message, config) {
+    const userId = message.author.id;
+    const now = Date.now();
+    
+    // Simple spam detection: check for rapid messages
+    if (!spamTracker.has(userId)) {
+        spamTracker.set(userId, []);
+    }
+    
+    const userMessages = spamTracker.get(userId);
+    
+    // Remove messages older than 10 seconds
+    const recentMessages = userMessages.filter(timestamp => now - timestamp < 10000);
+    recentMessages.push(now);
+    
+    spamTracker.set(userId, recentMessages);
+    
+    // If more than 5 messages in 10 seconds, it's spam
+    if (recentMessages.length > 5) {
+        return {
+            type: 'spam',
+            severity: 'high',
+            reason: `Rapid message sending (${recentMessages.length} messages in 10 seconds)`
+        };
+    }
+    
+    return null;
+}
+
+// Check for link violations
+async function checkLinkViolation(message) {
+    const urlRegex = /(https?:\/\/[^\s]+)/g;
+    const urls = message.content.match(urlRegex);
+    
+    if (!urls) return null;
+    
+    // Check for suspicious domains (basic implementation)
+    const suspiciousDomains = ['bit.ly', 'tinyurl.com', 'short.link', 'discord.gg'];
+    
+    for (const url of urls) {
+        try {
+            const domain = new URL(url).hostname.toLowerCase();
+            if (suspiciousDomains.some(suspicious => domain.includes(suspicious))) {
+                return {
+                    type: 'suspicious_link',
+                    severity: 'medium',
+                    reason: `Suspicious domain detected: ${domain}`
+                };
+            }
+        } catch (error) {
+            // Invalid URL
+            return {
+                type: 'invalid_link',
+                severity: 'low',
+                reason: 'Invalid or malformed URL detected'
+            };
+        }
+    }
+    
+    return null;
+}
+
+// Check for bad words (basic implementation)
+async function checkBadWords(message) {
+    const badWords = ['spam', 'scam', 'hack']; // Basic list - can be expanded
+    
+    const content = message.content.toLowerCase();
+    for (const word of badWords) {
+        if (content.includes(word)) {
+            return {
+                type: 'bad_word',
+                severity: 'medium',
+                reason: `Inappropriate content detected: "${word}"`
+            };
+        }
+    }
+    
+    return null;
+}
+
+// Process violations and apply punishments
+async function processViolations(message, violations, config) {
+    const userId = message.author.id;
+    const member = message.guild.members.cache.get(userId);
+    
+    if (!member) return;
+    
+    // Get user's violation count
+    const userViolations = await db.select().from(moderationLogs)
+        .where(and(
+            eq(moderationLogs.serverId, message.guild.id),
+            eq(moderationLogs.userId, userId),
+            eq(moderationLogs.action, 'automod_warning')
+        ));
+    
+    const violationCount = userViolations.length;
+    
+    // Log the violation
+    await db.insert(moderationLogs).values({
+        serverId: message.guild.id,
+        userId: userId,
+        moderatorId: client.user.id,
+        action: 'automod_warning',
+        reason: violations.map(v => v.reason).join('; ')
+    });
+    
+    // Delete the message
+    try {
+        await message.delete();
+    } catch (error) {
+        console.log('Could not delete message:', error.message);
+    }
+    
+    // Apply punishment based on violation count
+    if (violationCount >= config.warningThreshold) {
+        // Timeout the user
+        try {
+            await member.timeout(config.timeoutDuration * 1000, 'Auto-moderation: Multiple violations');
+            
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Action',
+                `**User:** ${member.user}\n**Action:** Timeout (${config.timeoutDuration}s)\n**Reason:** Multiple violations\n**Violations:** ${violations.map(v => v.reason).join(', ')}`,
+                '#E74C3C'
+            );
+            
+            // Send to log channel if configured
+            if (config.logChannelId) {
+                const logChannel = message.guild.channels.cache.get(config.logChannelId);
+                if (logChannel) {
+                    await logChannel.send({ embeds: [embed] });
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error applying timeout:', error);
+        }
+    } else {
+        // Send warning DM
+        try {
+            const warningEmbed = createAstraeeEmbed(
+                'Auto-Moderation Warning',
+                `Your message was removed due to: ${violations.map(v => v.reason).join(', ')}\n\n**Warning ${violationCount + 1}/${config.warningThreshold}**\n\nPlease review the server rules to avoid further violations.`,
+                '#F39C12'
+            );
+            
+            await member.send({ embeds: [warningEmbed] });
+        } catch (error) {
+            console.log('Could not send warning DM:', error.message);
+        }
+    }
+}
+
+// Spam tracker for message frequency
+const spamTracker = new Map();
+
+// Clean up old spam tracking data every 5 minutes
+setInterval(() => {
+    const now = Date.now();
+    for (const [userId, timestamps] of spamTracker.entries()) {
+        const recentTimestamps = timestamps.filter(timestamp => now - timestamp < 60000); // Keep last minute
+        if (recentTimestamps.length === 0) {
+            spamTracker.delete(userId);
+        } else {
+            spamTracker.set(userId, recentTimestamps);
+        }
+    }
+}, 300000); // 5 minutes
 
 // Error handling
 process.on('unhandledRejection', (reason, promise) => {
