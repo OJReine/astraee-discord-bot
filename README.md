@@ -1,16 +1,10 @@
 # ✦ Astraee - Elegant Discord Bot for IMVU Modeling Agencies ✦
 
-Astraee is a sophisticated Discord bot designed specifically for IMVU modeling agencies and streaming collectives. She embodies elegance, discipline, and accountability while managing embed templates, stream tracking, and automated reminders.
+Astraee is a sophisticated Discord bot designed specifically for IMVU modeling agencies and streaming collectives. She embodies elegance, discipline, and accountability while managing stream tracking, automated reminders, moderation, and community features.
 
 ## ✦ Features ✦
 
-### Embed Management
-- `/embed create` - Create and store reusable embed templates
-- `/embed list` - View all stored embed templates
-- `/embed edit` - Modify existing embed templates  
-- `/embed send` - Send stored embeds to channels
-
-### Stream Tracking
+### Stream Tracking & Management
 - `/streamcreate` - Register new IMVU streams with admin/model flexibility
 - `/activestreams` - View all active streams with role pinging
 - `/completestream` - Mark streams as completed and archive them
@@ -20,6 +14,32 @@ Astraee is a sophisticated Discord bot designed specifically for IMVU modeling a
 - `/cleanupall` - Emergency cleanup of all streams (Officer-only)
 - Automated reminders 1 day before stream due dates
 - 7-day retention for completed streams before automatic cleanup
+
+### Moderation & Community Management
+- `/kick` - Kick users with reason logging
+- `/ban` - Ban users with message deletion options
+- `/timeout` - Timeout users for specified duration
+- `/mute` / `/unmute` - Mute/unmute users
+- `/modlogs` - View moderation history
+- `/reactionrole` - Manage reaction roles for message interactions
+- `/say` - Make Astraee speak messages to channels
+
+### Statistics & Leveling System
+- `/stats monthly` - View monthly stream statistics
+- `/stats yearly` - View yearly stream summaries
+- `/stats leaderboard` - Display top performers
+- `/stats submit` - Submit yearly summaries (Admin-only)
+- `/level view` - Check user level and XP
+- `/level leaderboard` - View server level rankings
+- `/level give` - Award XP to users (Admin-only)
+- `/level setreward` - Set role rewards for levels
+- `/level rewards` - View available level rewards
+
+### Automated Systems
+- **Auto-Moderation**: Spam protection, link filtering, mention limits, bad word detection
+- **Scheduled Messages**: Automated announcements with cron scheduling
+- **Level System**: XP tracking from messages with role rewards
+- **Statistics Tracking**: Automatic monthly/yearly stream count tracking
 
 ### Astraee's Persona
 - Elegant, refined, and ceremonial communication style
@@ -59,19 +79,20 @@ For complete setup instructions, see **[SETUP_GUIDE.md](./SETUP_GUIDE.md)** - it
 
 ## ✦ Database Schema ✦
 
-The bot uses PostgreSQL with three main tables:
+The bot uses PostgreSQL with multiple tables for comprehensive functionality:
 
 - **users** - Discord user tracking and roles
-- **embed_templates** - Stored embed templates by server
 - **streams** - IMVU stream records with status tracking
+- **reactionRoles** - Reaction role assignments
+- **roleUsage** - Track reaction role usage limits
+- **moderationLogs** - Moderation action history
+- **monthlyStats** - Monthly stream statistics
+- **yearlySummaries** - Yearly performance summaries
+- **userLevels** - User XP and level tracking
+- **scheduledMessages** - Automated message scheduling
+- **autoModSettings** - Auto-moderation configuration
 
 ## ✦ Commands Reference ✦
-
-### Embed Commands
-- **Create Template**: `/embed create name:template-name title:"Optional Title" description:"Template content"`
-- **List Templates**: `/embed list`
-- **Edit Template**: `/embed edit name:existing-template title:"New Title"`
-- **Send Template**: `/embed send name:template-name channel:#target-channel`
 
 ### Stream Commands
 - **Register Stream**: `/streamcreate items:"Item Name" days:7 model:@ModelUser role:@StreamOfficers`
@@ -81,6 +102,38 @@ The bot uses PostgreSQL with three main tables:
 - **List Streams**: `/streamlist status:active model:@ModelUser channel:#target-channel`
 - **Cleanup**: `/cleanup days:7` (Officers only)
 - **Emergency Cleanup**: `/cleanupall confirm:true` (Officers only)
+
+### Moderation Commands
+- **Kick User**: `/kick user:@User reason:"Violation of rules"`
+- **Ban User**: `/ban user:@User reason:"Severe violation" delete_days:7`
+- **Timeout User**: `/timeout user:@User duration:60 reason:"Temporary timeout"`
+- **Mute User**: `/mute user:@User reason:"Spam prevention"`
+- **Unmute User**: `/unmute user:@User`
+- **View Mod Logs**: `/modlogs user:@User`
+
+### Reaction Role Commands
+- **Add Reaction Role**: `/reactionrole add message_id:123456789 emoji:🎭 role:@Role`
+- **Remove Reaction Role**: `/reactionrole remove message_id:123456789 emoji:🎭`
+- **List Reaction Roles**: `/reactionrole list message_id:123456789`
+- **Clear All Reaction Roles**: `/reactionrole clear message_id:123456789`
+
+### Statistics Commands
+- **Monthly Stats**: `/stats monthly` - View current month's stream statistics
+- **Yearly Stats**: `/stats yearly` - View yearly performance summaries
+- **Leaderboard**: `/stats leaderboard` - Display top performers
+- **Submit Summary**: `/stats submit streams:150 average_streams:12.5` (Admin-only)
+
+### Level System Commands
+- **View Level**: `/level view user:@User` - Check user's level and XP
+- **Level Leaderboard**: `/level leaderboard` - View server rankings
+- **Give XP**: `/level give user:@User amount:100` (Admin-only)
+- **Set Reward**: `/level setreward level:10 role:@Role` (Admin-only)
+- **Remove Reward**: `/level removereward level:10` (Admin-only)
+- **View Rewards**: `/level rewards` - List all level rewards
+- **Reset Levels**: `/level reset confirm:true` (Admin-only)
+
+### Utility Commands
+- **Say Message**: `/say message:"Hello everyone!" channel:#general`
 
 ### Stream Workflow
 1. **Admin or Model** uses `/streamcreate` to register stream
@@ -101,8 +154,11 @@ The bot looks for these channel patterns:
 - `completed-streams` - For archived completed streams
 
 ### Permissions Setup
-For officer-only commands like `/activestreams`:
-- Assign "Manage Messages" permission to officer roles
+For officer-only commands:
+- Assign "Manage Messages" permission to officer roles for `/activestreams`, `/cleanup`
+- Assign "Manage Roles" permission for `/reactionrole` commands
+- Assign "Kick Members" permission for `/kick` command
+- Assign "Ban Members" permission for `/ban` command
 - Or use Discord's slash command permissions in Server Settings
 
 ### Admin/Model Flexibility
@@ -113,11 +169,26 @@ The bot supports flexible stream creation:
 - **Role pinging** for Stream Officers in plain text
 - **Creator pinging** in embed for recognition
 
+### Auto-Moderation Configuration
+Configure automated moderation features:
+- **Spam Protection**: Automatic timeout for repeated messages
+- **Link Filtering**: Block or allow links based on server rules
+- **Mention Limits**: Prevent mention spam
+- **Bad Word Detection**: Filter inappropriate content
+- **Whitelist System**: Exempt channels/users from auto-moderation
+
+### Level System Customization
+- **XP Rewards**: Set custom XP amounts for different activities
+- **Role Rewards**: Assign roles for reaching specific levels
+- **Leaderboard Display**: Customize how rankings are shown
+- **Level Requirements**: Adjust XP requirements for level progression
+
 ### Database Management
 - **Automatic cleanup** of completed streams after 7 days
 - **Manual cleanup** commands for officers
 - **Duplicate prevention** with interaction tracking
 - **Efficient storage** to stay within free tier limits
+- **Statistics tracking** for performance monitoring
 
 ## ✦ Deployment ✦
 
@@ -130,8 +201,10 @@ The bot supports flexible stream creation:
 ### Scaling for Multiple Servers
 The bot is designed to work across multiple Discord servers:
 - All data is scoped by `serverId`
-- Each server maintains independent embed templates and streams
-- User data is tracked per server
+- Each server maintains independent streams, moderation logs, and statistics
+- User data is tracked per server with separate level systems
+- Auto-moderation settings are server-specific
+- Reaction roles work independently per server
 
 ## ✦ Support ✦
 
