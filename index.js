@@ -319,7 +319,7 @@ const commands = [
                 .addStringOption(option =>
                     option.setName('type')
                         .setDescription('Type of welcome setting')
-                        .setRequired(true)
+                        .setRequired(false)
                         .addChoices(
                             { name: 'Channel', value: 'channel' },
                             { name: 'Message', value: 'message' },
@@ -345,7 +345,7 @@ const commands = [
                 .addStringOption(option =>
                     option.setName('type')
                         .setDescription('Type of goodbye setting')
-                        .setRequired(true)
+                        .setRequired(false)
                         .addChoices(
                             { name: 'Channel', value: 'channel' },
                             { name: 'Message', value: 'message' },
@@ -565,16 +565,16 @@ const commands = [
             subcommand
                 .setName('submit')
                 .setDescription('Submit yearly summary (admin only)')
-                .addIntegerOption(option =>
-                    option.setName('year')
-                        .setDescription('Year for the summary (default: current year)')
-                        .setMinValue(2020)
-                        .setMaxValue(2030))
                 .addStringOption(option =>
                     option.setName('summary')
                         .setDescription('Congratulatory summary text')
                         .setRequired(true)
                         .setMaxLength(2000))
+                .addIntegerOption(option =>
+                    option.setName('year')
+                        .setDescription('Year for the summary (default: current year)')
+                        .setMinValue(2020)
+                        .setMaxValue(2030))
                 .addIntegerOption(option =>
                     option.setName('total_streams')
                         .setDescription('Total streams for the year')
@@ -7100,6 +7100,15 @@ async function handleSetWelcome(interaction) {
     const message = interaction.options.getString('message');
     const embed = interaction.options.getString('embed');
 
+    if (!type) {
+        const errorEmbed = createAstraeeEmbed(
+            'Type Required',
+            'Please specify the type of welcome setting (channel, message, or embed).',
+            '#E74C3C'
+        );
+        return interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
+    }
+
     try {
         // Get or create welcome settings
         let settings = await db.select().from(welcomeSettings)
@@ -7161,6 +7170,15 @@ async function handleSetGoodbye(interaction) {
     const channel = interaction.options.getChannel('channel');
     const message = interaction.options.getString('message');
     const embed = interaction.options.getString('embed');
+
+    if (!type) {
+        const errorEmbed = createAstraeeEmbed(
+            'Type Required',
+            'Please specify the type of goodbye setting (channel, message, or embed).',
+            '#E74C3C'
+        );
+        return interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
+    }
 
     try {
         // Similar to welcome but for goodbye
