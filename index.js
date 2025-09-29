@@ -555,7 +555,133 @@ const commands = [
                 .addUserOption(option =>
                     option.setName('user')
                         .setDescription('User to reset (leave empty for all users)')
-                        .setRequired(false)))
+                        .setRequired(false))),
+
+    new SlashCommandBuilder()
+        .setName('schedule')
+        .setDescription('Manage scheduled messages and announcements with elegant precision')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('create')
+                .setDescription('Create a new scheduled message')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('Name for the scheduled message')
+                        .setRequired(true)
+                        .setMaxLength(100))
+                .addStringOption(option =>
+                    option.setName('message')
+                        .setDescription('Message content to send')
+                        .setRequired(true)
+                        .setMaxLength(2000))
+                .addChannelOption(option =>
+                    option.setName('channel')
+                        .setDescription('Channel to send the message to')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('schedule_type')
+                        .setDescription('Type of schedule')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'One Time', value: 'once' },
+                            { name: 'Daily', value: 'daily' },
+                            { name: 'Weekly', value: 'weekly' },
+                            { name: 'Monthly', value: 'monthly' }
+                        ))
+                .addStringOption(option =>
+                    option.setName('time')
+                        .setDescription('Time to send (format: HH:MM, 24-hour)')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('date')
+                        .setDescription('Date for one-time messages (format: YYYY-MM-DD)')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('day_of_week')
+                        .setDescription('Day of week for weekly messages (0=Sunday, 1=Monday, etc.)')
+                        .setRequired(false)
+                        .addChoices(
+                            { name: 'Sunday', value: '0' },
+                            { name: 'Monday', value: '1' },
+                            { name: 'Tuesday', value: '2' },
+                            { name: 'Wednesday', value: '3' },
+                            { name: 'Thursday', value: '4' },
+                            { name: 'Friday', value: '5' },
+                            { name: 'Saturday', value: '6' }
+                        ))
+                .addIntegerOption(option =>
+                    option.setName('day_of_month')
+                        .setDescription('Day of month for monthly messages (1-31)')
+                        .setRequired(false)
+                        .setMinValue(1)
+                        .setMaxValue(31))
+                .addRoleOption(option =>
+                    option.setName('ping_role')
+                        .setDescription('Role to ping when message is sent')
+                        .setRequired(false))
+                .addBooleanOption(option =>
+                    option.setName('enabled')
+                        .setDescription('Whether the schedule is enabled (default: true)')))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('list')
+                .setDescription('List all scheduled messages')
+                .addBooleanOption(option =>
+                    option.setName('enabled_only')
+                        .setDescription('Show only enabled schedules (default: false)')))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('edit')
+                .setDescription('Edit a scheduled message')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('Name of the scheduled message to edit')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('message')
+                        .setDescription('New message content')
+                        .setMaxLength(2000))
+                .addChannelOption(option =>
+                    option.setName('channel')
+                        .setDescription('New channel to send to'))
+                .addStringOption(option =>
+                    option.setName('time')
+                        .setDescription('New time (format: HH:MM, 24-hour)'))
+                .addRoleOption(option =>
+                    option.setName('ping_role')
+                        .setDescription('New role to ping')))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('toggle')
+                .setDescription('Enable or disable a scheduled message')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('Name of the scheduled message')
+                        .setRequired(true))
+                .addBooleanOption(option =>
+                    option.setName('enabled')
+                        .setDescription('Enable or disable the schedule')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('delete')
+                .setDescription('Delete a scheduled message')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('Name of the scheduled message to delete')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('test')
+                .setDescription('Test a scheduled message immediately')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('Name of the scheduled message to test')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('status')
+                .setDescription('View status of all scheduled messages'))
 ];
 
 // Register commands with Discord
@@ -570,6 +696,7 @@ client.once('ready', async () => {
         
         // Start reminder system
         startReminderSystem();
+        startScheduledMessageSystem();
         
     } catch (error) {
         console.error('Error registering commands:', error);
@@ -919,18 +1046,21 @@ client.on('interactionCreate', async interaction => {
         else if (commandName === 'level') {
             await handleLevel(interaction);
         }
+        else if (commandName === 'schedule') {
+            await handleSchedule(interaction);
+        }
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
         
         // Only try to reply if the interaction hasn't been acknowledged
         if (!interaction.replied && !interaction.deferred) {
             try {
-                const embed = createAstraeeEmbed(
-                    'Graceful Error',
-                    'An unexpected disturbance occurred. Please try again with renewed focus.',
-                    '#E74C3C'
-                );
-                
+        const embed = createAstraeeEmbed(
+            'Graceful Error',
+            'An unexpected disturbance occurred. Please try again with renewed focus.',
+            '#E74C3C'
+        );
+        
                 await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
             } catch (replyError) {
                 console.error('Failed to send error reply:', replyError.message);
@@ -1217,9 +1347,9 @@ async function handleStreamCreate(interaction) {
         if (targetChannel) {
             try {
                 await targetChannel.send({ 
-                    content: responseText,
-                    embeds: [embed] 
-                });
+            content: responseText,
+            embeds: [embed] 
+        });
                 const confirmEmbed = createAstraeeEmbed(
                     'Stream Created',
                     `Stream has been created and sent to ${targetChannel} with elegant precision.`
@@ -1402,10 +1532,10 @@ async function handleCompleteStream(interaction) {
         try {
             await targetChannel.send({ 
                 content: responseText,
-                embeds: [completionEmbed] 
-            });
-            const confirmEmbed = createAstraeeEmbed(
-                'Completion Recorded',
+            embeds: [completionEmbed] 
+        });
+    const confirmEmbed = createAstraeeEmbed(
+        'Completion Recorded',
                 `Stream **${streamId}** has been marked complete and sent to ${targetChannel}.\n\nYour dedication shines eternal in our constellation.`
             );
             await interaction.reply({ embeds: [confirmEmbed], flags: ephemeral ? MessageFlags.Ephemeral : 0 });
@@ -3760,6 +3890,646 @@ async function handleMessageXp(message) {
 
     } catch (error) {
         console.error('Error handling message XP:', error);
+    }
+}
+
+// Scheduled messages command handler - Manage automated announcements with elegant precision
+async function handleSchedule(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'create':
+                await handleScheduleCreate(interaction);
+                break;
+            case 'list':
+                await handleScheduleList(interaction);
+                break;
+            case 'edit':
+                await handleScheduleEdit(interaction);
+                break;
+            case 'toggle':
+                await handleScheduleToggle(interaction);
+                break;
+            case 'delete':
+                await handleScheduleDelete(interaction);
+                break;
+            case 'test':
+                await handleScheduleTest(interaction);
+                break;
+            case 'status':
+                await handleScheduleStatus(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in schedule command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Schedule System Error',
+            'An error occurred while managing scheduled messages. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Handle creating scheduled messages
+async function handleScheduleCreate(interaction) {
+    const name = interaction.options.getString('name');
+    const message = interaction.options.getString('message');
+    const channel = interaction.options.getChannel('channel');
+    const scheduleType = interaction.options.getString('schedule_type');
+    const time = interaction.options.getString('time');
+    const date = interaction.options.getString('date');
+    const dayOfWeek = interaction.options.getString('day_of_week');
+    const dayOfMonth = interaction.options.getInteger('day_of_month');
+    const pingRole = interaction.options.getRole('ping_role');
+    const enabled = interaction.options.getBoolean('enabled') ?? true;
+
+    try {
+        // Validate time format
+        const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+        if (!timeRegex.test(time)) {
+            const embed = createAstraeeEmbed(
+                'Invalid Time Format',
+                'Please use the format HH:MM (24-hour) for the time. Example: 14:30',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Validate date format for one-time messages
+        if (scheduleType === 'once' && date) {
+            const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+            if (!dateRegex.test(date)) {
+                const embed = createAstraeeEmbed(
+                    'Invalid Date Format',
+                    'Please use the format YYYY-MM-DD for the date. Example: 2024-12-25',
+                    '#E74C3C'
+                );
+                return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            }
+        }
+
+        // Check if schedule name already exists
+        const existingSchedule = await db.select().from(scheduledMessages)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ))
+            .limit(1);
+
+        if (existingSchedule.length > 0) {
+            const embed = createAstraeeEmbed(
+                'Schedule Name Exists',
+                `A scheduled message with the name "${name}" already exists. Please choose a different name.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create the scheduled message
+        await db.insert(scheduledMessages).values({
+            serverId: interaction.guild.id,
+            name: name,
+            message: message,
+            channelId: channel.id,
+            scheduleType: scheduleType,
+            time: time,
+            date: date,
+            dayOfWeek: dayOfWeek ? parseInt(dayOfWeek) : null,
+            dayOfMonth: dayOfMonth,
+            pingRoleId: pingRole?.id,
+            enabled: enabled,
+            createdBy: interaction.user.id,
+            createdAt: new Date()
+        });
+
+        const embed = createAstraeeEmbed(
+            'Scheduled Message Created',
+            `Successfully created scheduled message **"${name}"**! ✦\n\n**Details:**\n• **Type:** ${scheduleType}\n• **Time:** ${time}\n• **Channel:** ${channel}\n• **Status:** ${enabled ? 'Enabled' : 'Disabled'}\n\nYour message will be sent automatically according to the schedule.`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error creating scheduled message:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Creation Error',
+            'Failed to create scheduled message. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle listing scheduled messages
+async function handleScheduleList(interaction) {
+    const enabledOnly = interaction.options.getBoolean('enabled_only') || false;
+
+    try {
+        let schedules;
+        if (enabledOnly) {
+            schedules = await db.select().from(scheduledMessages)
+                .where(and(
+                    eq(scheduledMessages.serverId, interaction.guild.id),
+                    eq(scheduledMessages.enabled, true)
+                ))
+                .orderBy(asc(scheduledMessages.name));
+        } else {
+            schedules = await db.select().from(scheduledMessages)
+                .where(eq(scheduledMessages.serverId, interaction.guild.id))
+                .orderBy(asc(scheduledMessages.name));
+        }
+
+        if (schedules.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Scheduled Messages',
+                `No scheduled messages found${enabledOnly ? ' (enabled only)' : ''}.\n\nCreate your first scheduled message using \`/schedule create\` ✦`,
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create list embed
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Scheduled Messages ✦')
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Time is the most precious resource we have." - Astraee ✦` })
+            .setTimestamp();
+
+        let scheduleText = '';
+        for (const schedule of schedules) {
+            const status = schedule.enabled ? '✅' : '❌';
+            const channel = interaction.guild.channels.cache.get(schedule.channelId);
+            const channelName = channel ? channel.name : 'Unknown Channel';
+            
+            let scheduleInfo = '';
+            switch (schedule.scheduleType) {
+                case 'once':
+                    scheduleInfo = `One-time (${schedule.date})`;
+                    break;
+                case 'daily':
+                    scheduleInfo = 'Daily';
+                    break;
+                case 'weekly':
+                    const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+                    scheduleInfo = `Weekly (${dayNames[schedule.dayOfWeek]})`;
+                    break;
+                case 'monthly':
+                    scheduleInfo = `Monthly (Day ${schedule.dayOfMonth})`;
+                    break;
+            }
+            
+            scheduleText += `${status} **${schedule.name}**\n• ${scheduleInfo} at ${schedule.time}\n• Channel: #${channelName}\n\n`;
+        }
+
+        embed.addFields({
+            name: '📅 Scheduled Messages',
+            value: scheduleText,
+            inline: false
+        });
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error listing scheduled messages:', error);
+        
+        const embed = createAstraeeEmbed(
+            'List Error',
+            'Failed to retrieve scheduled messages. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle editing scheduled messages
+async function handleScheduleEdit(interaction) {
+    const name = interaction.options.getString('name');
+    const newMessage = interaction.options.getString('message');
+    const newChannel = interaction.options.getChannel('channel');
+    const newTime = interaction.options.getString('time');
+    const newPingRole = interaction.options.getRole('ping_role');
+
+    try {
+        // Find the scheduled message
+        const existingSchedule = await db.select().from(scheduledMessages)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ))
+            .limit(1);
+
+        if (existingSchedule.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Schedule Not Found',
+                `No scheduled message found with the name "${name}".`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const schedule = existingSchedule[0];
+
+        // Validate time format if provided
+        if (newTime) {
+            const timeRegex = /^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/;
+            if (!timeRegex.test(newTime)) {
+                const embed = createAstraeeEmbed(
+                    'Invalid Time Format',
+                    'Please use the format HH:MM (24-hour) for the time. Example: 14:30',
+                    '#E74C3C'
+                );
+                return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+            }
+        }
+
+        // Update the scheduled message
+        const updateData = {};
+        if (newMessage) updateData.message = newMessage;
+        if (newChannel) updateData.channelId = newChannel.id;
+        if (newTime) updateData.time = newTime;
+        if (newPingRole) updateData.pingRoleId = newPingRole.id;
+        updateData.updatedAt = new Date();
+
+        await db.update(scheduledMessages)
+            .set(updateData)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ));
+
+        const embed = createAstraeeEmbed(
+            'Schedule Updated',
+            `Successfully updated scheduled message **"${name}"**! ✦\n\nChanges have been applied and will take effect immediately.`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error editing scheduled message:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Edit Error',
+            'Failed to edit scheduled message. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle toggling scheduled messages
+async function handleScheduleToggle(interaction) {
+    const name = interaction.options.getString('name');
+    const enabled = interaction.options.getBoolean('enabled');
+
+    try {
+        // Find the scheduled message
+        const existingSchedule = await db.select().from(scheduledMessages)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ))
+            .limit(1);
+
+        if (existingSchedule.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Schedule Not Found',
+                `No scheduled message found with the name "${name}".`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Update the enabled status
+        await db.update(scheduledMessages)
+            .set({ 
+                enabled: enabled,
+                updatedAt: new Date()
+            })
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ));
+
+        const embed = createAstraeeEmbed(
+            'Schedule Toggled',
+            `Successfully **${enabled ? 'enabled' : 'disabled'}** scheduled message **"${name}"**! ✦`,
+            enabled ? '#27AE60' : '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error toggling scheduled message:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Toggle Error',
+            'Failed to toggle scheduled message. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle deleting scheduled messages
+async function handleScheduleDelete(interaction) {
+    const name = interaction.options.getString('name');
+
+    try {
+        // Find the scheduled message
+        const existingSchedule = await db.select().from(scheduledMessages)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ))
+            .limit(1);
+
+        if (existingSchedule.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Schedule Not Found',
+                `No scheduled message found with the name "${name}".`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Delete the scheduled message
+        await db.delete(scheduledMessages)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ));
+
+        const embed = createAstraeeEmbed(
+            'Schedule Deleted',
+            `Successfully deleted scheduled message **"${name}"**! ✦\n\nThe message will no longer be sent automatically.`,
+            '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error deleting scheduled message:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Delete Error',
+            'Failed to delete scheduled message. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle testing scheduled messages
+async function handleScheduleTest(interaction) {
+    const name = interaction.options.getString('name');
+
+    try {
+        // Find the scheduled message
+        const existingSchedule = await db.select().from(scheduledMessages)
+            .where(and(
+                eq(scheduledMessages.serverId, interaction.guild.id),
+                eq(scheduledMessages.name, name)
+            ))
+            .limit(1);
+
+        if (existingSchedule.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Schedule Not Found',
+                `No scheduled message found with the name "${name}".`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const schedule = existingSchedule[0];
+        const channel = interaction.guild.channels.cache.get(schedule.channelId);
+
+        if (!channel) {
+            const embed = createAstraeeEmbed(
+                'Channel Not Found',
+                'The target channel for this scheduled message no longer exists.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Send the test message
+        let content = '';
+        if (schedule.pingRoleId) {
+            const role = interaction.guild.roles.cache.get(schedule.pingRoleId);
+            if (role) {
+                content = `<@&${role.id}>`;
+            }
+        }
+
+        await channel.send({ 
+            content: content,
+            embeds: [createAstraeeEmbed(
+                'Test Message',
+                schedule.message,
+                '#9B59B6'
+            )]
+        });
+
+        const embed = createAstraeeEmbed(
+            'Test Message Sent',
+            `Successfully sent test message for **"${name}"** to ${channel}! ✦`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error testing scheduled message:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Test Error',
+            'Failed to send test message. Please check channel permissions and try again.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle viewing schedule status
+async function handleScheduleStatus(interaction) {
+    try {
+        const schedules = await db.select().from(scheduledMessages)
+            .where(eq(scheduledMessages.serverId, interaction.guild.id))
+            .orderBy(asc(scheduledMessages.name));
+
+        if (schedules.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Schedule Status',
+                'No scheduled messages found.\n\nCreate your first scheduled message using \`/schedule create\` ✦',
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create status embed
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Schedule Status Overview ✦')
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Organization is the key to efficiency." - Astraee ✦` })
+            .setTimestamp();
+
+        const enabledCount = schedules.filter(s => s.enabled).length;
+        const disabledCount = schedules.length - enabledCount;
+
+        embed.addFields({
+            name: '📊 Summary',
+            value: `**Total Schedules:** ${schedules.length}\n**Enabled:** ${enabledCount}\n**Disabled:** ${disabledCount}`,
+            inline: true
+        });
+
+        // Add next execution info
+        const now = new Date();
+        let nextExecution = 'No upcoming executions';
+        
+        const enabledSchedules = schedules.filter(s => s.enabled);
+        if (enabledSchedules.length > 0) {
+            // Find the next scheduled message
+            const nextSchedule = enabledSchedules[0]; // Simplified - in real implementation, calculate actual next execution
+            nextExecution = `**${nextSchedule.name}** - ${nextSchedule.time}`;
+        }
+
+        embed.addFields({
+            name: '⏰ Next Execution',
+            value: nextExecution,
+            inline: true
+        });
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error viewing schedule status:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Status Error',
+            'Failed to retrieve schedule status. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Scheduled message execution system
+function startScheduledMessageSystem() {
+    // Check every minute for scheduled messages
+    cron.schedule('* * * * *', async () => {
+        try {
+            const now = new Date();
+            const currentTime = now.toTimeString().slice(0, 5); // HH:MM format
+            const currentDay = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+            const currentDate = now.toISOString().slice(0, 10); // YYYY-MM-DD format
+            const currentDayOfMonth = now.getDate();
+
+            // Get all enabled scheduled messages
+            const schedules = await db.select().from(scheduledMessages)
+                .where(eq(scheduledMessages.enabled, true));
+
+            for (const schedule of schedules) {
+                let shouldExecute = false;
+
+                switch (schedule.scheduleType) {
+                    case 'once':
+                        if (schedule.date === currentDate && schedule.time === currentTime) {
+                            shouldExecute = true;
+                        }
+                        break;
+                    case 'daily':
+                        if (schedule.time === currentTime) {
+                            shouldExecute = true;
+                        }
+                        break;
+                    case 'weekly':
+                        if (schedule.dayOfWeek === currentDay && schedule.time === currentTime) {
+                            shouldExecute = true;
+                        }
+                        break;
+                    case 'monthly':
+                        if (schedule.dayOfMonth === currentDayOfMonth && schedule.time === currentTime) {
+                            shouldExecute = true;
+                        }
+                        break;
+                }
+
+                if (shouldExecute) {
+                    await executeScheduledMessage(schedule);
+                }
+            }
+
+        } catch (error) {
+            console.error('Error in scheduled message system:', error);
+        }
+    });
+
+    console.log('✦ Scheduled message system activated ✦');
+}
+
+// Execute a scheduled message
+async function executeScheduledMessage(schedule) {
+    try {
+        const guild = client.guilds.cache.get(schedule.serverId);
+        if (!guild) return;
+
+        const channel = guild.channels.cache.get(schedule.channelId);
+        if (!channel) {
+            console.log(`Channel not found for scheduled message: ${schedule.name}`);
+            return;
+        }
+
+        // Prepare message content
+        let content = '';
+        if (schedule.pingRoleId) {
+            const role = guild.roles.cache.get(schedule.pingRoleId);
+            if (role) {
+                content = `<@&${role.id}>`;
+            }
+        }
+
+        // Send the scheduled message
+        await channel.send({ 
+            content: content,
+            embeds: [createAstraeeEmbed(
+                'Scheduled Announcement',
+                schedule.message,
+                '#9B59B6'
+            )]
+        });
+
+        console.log(`✦ Scheduled message "${schedule.name}" executed in ${guild.name} ✦`);
+
+        // If it's a one-time message, disable it
+        if (schedule.scheduleType === 'once') {
+            await db.update(scheduledMessages)
+                .set({ 
+                    enabled: false,
+                    updatedAt: new Date()
+                })
+                .where(eq(scheduledMessages.id, schedule.id));
+        }
+
+    } catch (error) {
+        console.error(`Error executing scheduled message "${schedule.name}":`, error);
     }
 }
 
