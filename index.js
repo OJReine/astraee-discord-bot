@@ -477,7 +477,85 @@ const commands = [
                     option.setName('limit')
                         .setDescription('Number of users to show (default: 10)')
                         .setMinValue(5)
+                        .setMaxValue(25))),
+
+    new SlashCommandBuilder()
+        .setName('level')
+        .setDescription('View and manage user levels with elegant precision')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('view')
+                .setDescription('View your or another user\'s level')
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('User to view level for (default: yourself)')))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('leaderboard')
+                .setDescription('View server level leaderboard')
+                .addIntegerOption(option =>
+                    option.setName('limit')
+                        .setDescription('Number of users to show (default: 10)')
+                        .setMinValue(5)
                         .setMaxValue(25)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('give')
+                .setDescription('Give XP to a user (admin only)')
+                .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('User to give XP to')
+                        .setRequired(true))
+                .addIntegerOption(option =>
+                    option.setName('amount')
+                        .setDescription('Amount of XP to give')
+                        .setRequired(true)
+                        .setMinValue(1)
+                        .setMaxValue(10000))
+                .addStringOption(option =>
+                    option.setName('reason')
+                        .setDescription('Reason for giving XP')
+                        .setMaxLength(100)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('setreward')
+                .setDescription('Set level reward roles (admin only)')
+                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+                .addIntegerOption(option =>
+                    option.setName('level')
+                        .setDescription('Level to set reward for')
+                        .setRequired(true)
+                        .setMinValue(1)
+                        .setMaxValue(100))
+                .addRoleOption(option =>
+                    option.setName('role')
+                        .setDescription('Role to give at this level')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('removereward')
+                .setDescription('Remove level reward role (admin only)')
+                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+                .addIntegerOption(option =>
+                    option.setName('level')
+                        .setDescription('Level to remove reward for')
+                        .setRequired(true)
+                        .setMinValue(1)
+                        .setMaxValue(100)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('rewards')
+                .setDescription('View all level reward roles'))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('reset')
+                .setDescription('Reset user level data (admin only)')
+                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
+                .addUserOption(option =>
+                    option.setName('user')
+                        .setDescription('User to reset (leave empty for all users)')
+                        .setRequired(false)))
 ];
 
 // Register commands with Discord
@@ -740,6 +818,17 @@ client.on('messageReactionRemove', async (reaction, user) => {
     }
 });
 
+// Handle message XP for level system
+client.on('messageCreate', async message => {
+    try {
+        // Give XP for messages
+        await handleMessageXp(message);
+        
+    } catch (error) {
+        console.error('Error in messageCreate handler:', error);
+    }
+});
+
 // Handle slash commands
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
@@ -826,6 +915,9 @@ client.on('interactionCreate', async interaction => {
         }
         else if (commandName === 'stats') {
             await handleStats(interaction);
+        }
+        else if (commandName === 'level') {
+            await handleLevel(interaction);
         }
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
@@ -3059,6 +3151,615 @@ async function updateMonthlyStats(serverId, userId) {
 
     } catch (error) {
         console.error('Error updating monthly stats:', error);
+    }
+}
+
+// Level system command handler - Manage user levels and XP with elegant precision
+async function handleLevel(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'view':
+                await handleLevelView(interaction);
+                break;
+            case 'leaderboard':
+                await handleLevelLeaderboard(interaction);
+                break;
+            case 'give':
+                await handleLevelGive(interaction);
+                break;
+            case 'setreward':
+                await handleLevelSetReward(interaction);
+                break;
+            case 'removereward':
+                await handleLevelRemoveReward(interaction);
+                break;
+            case 'rewards':
+                await handleLevelRewards(interaction);
+                break;
+            case 'reset':
+                await handleLevelReset(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in level command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Level System Error',
+            'An error occurred while managing the level system. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Handle level view
+async function handleLevelView(interaction) {
+    const targetUser = interaction.options.getUser('user') || interaction.user;
+
+    try {
+        // Get user's level data
+        const userLevel = await db.select().from(userLevels)
+            .where(and(
+                eq(userLevels.serverId, interaction.guild.id),
+                eq(userLevels.userId, targetUser.id)
+            ))
+            .limit(1);
+
+        const levelData = userLevel.length > 0 ? userLevel[0] : {
+            userId: targetUser.id,
+            serverId: interaction.guild.id,
+            xp: 0,
+            level: 0,
+            totalXp: 0
+        };
+
+        const currentLevel = levelData.level;
+        const currentXp = levelData.xp;
+        const totalXp = levelData.totalXp;
+        const nextLevelXp = getXpRequiredForLevel(currentLevel + 1);
+
+        // Calculate progress bar
+        const progress = currentXp / nextLevelXp;
+        const progressBar = createProgressBar(progress);
+
+        // Create level embed
+        const embed = new EmbedBuilder()
+            .setTitle(`✦ ${targetUser.displayName}'s Level Profile ✦`)
+            .setColor('#9B59B6')
+            .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
+            .addFields(
+                {
+                    name: '🏆 Current Level',
+                    value: `**${currentLevel}**`,
+                    inline: true
+                },
+                {
+                    name: '⭐ Current XP',
+                    value: `**${currentXp}** / ${nextLevelXp}`,
+                    inline: true
+                },
+                {
+                    name: '🌟 Total XP',
+                    value: `**${totalXp}**`,
+                    inline: true
+                },
+                {
+                    name: '📊 Progress',
+                    value: `${progressBar} (${Math.round(progress * 100)}%)`,
+                    inline: false
+                }
+            )
+            .setFooter({ text: `✦ "Growth is measured not by perfection, but by perseverance." - Astraee ✦` })
+            .setTimestamp();
+
+        // Add rank if available
+        const rank = await getUserRank(interaction.guild.id, targetUser.id);
+        if (rank > 0) {
+            embed.addFields({
+                name: '🎯 Server Rank',
+                value: `**#${rank}**`,
+                inline: true
+            });
+        }
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching level data:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Level View Error',
+            'Failed to retrieve level information. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle level leaderboard
+async function handleLevelLeaderboard(interaction) {
+    const limit = interaction.options.getInteger('limit') || 10;
+
+    try {
+        const leaderboard = await db.select().from(userLevels)
+            .where(eq(userLevels.serverId, interaction.guild.id))
+            .orderBy(desc(userLevels.totalXp))
+            .limit(limit);
+
+        if (leaderboard.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Level Leaderboard',
+                'No level data found for this server.\n\nStart chatting to earn XP and level up! ✦',
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create leaderboard embed
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Server Level Leaderboard ✦')
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Excellence is achieved through consistent dedication." - Astraee ✦` })
+            .setTimestamp();
+
+        let leaderboardText = '';
+        for (let i = 0; i < leaderboard.length; i++) {
+            const user = leaderboard[i];
+            const discordUser = await client.users.fetch(user.userId).catch(() => null);
+            const username = discordUser ? discordUser.displayName : `Unknown User (${user.userId})`;
+            
+            const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '📊';
+            leaderboardText += `${medal} **Level ${user.level}** - **${username}** (${user.totalXp} XP)\n`;
+        }
+
+        embed.addFields({
+            name: '🏆 Top Performers',
+            value: leaderboardText,
+            inline: false
+        });
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching level leaderboard:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Leaderboard Error',
+            'Failed to retrieve level leaderboard. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle giving XP to users (admin only)
+async function handleLevelGive(interaction) {
+    const targetUser = interaction.options.getUser('user');
+    const amount = interaction.options.getInteger('amount');
+    const reason = interaction.options.getString('reason') || 'Admin reward';
+
+    try {
+        // Give XP to user
+        await giveXpToUser(interaction.guild.id, targetUser.id, amount);
+
+        const embed = createAstraeeEmbed(
+            'XP Awarded',
+            `Successfully gave **${amount} XP** to ${targetUser}! ✦\n\n**Reason:** ${reason}`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: targetUser.id,
+            moderatorId: interaction.user.id,
+            action: 'xp_given',
+            reason: `${amount} XP - ${reason}`
+        });
+
+    } catch (error) {
+        console.error('Error giving XP:', error);
+        
+        const embed = createAstraeeEmbed(
+            'XP Give Error',
+            'Failed to give XP to user. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle setting level rewards (admin only)
+async function handleLevelSetReward(interaction) {
+    const level = interaction.options.getInteger('level');
+    const role = interaction.options.getRole('role');
+
+    try {
+        // Check if reward already exists
+        const existingReward = await db.select().from(userLevels)
+            .where(and(
+                eq(userLevels.serverId, interaction.guild.id),
+                eq(userLevels.level, level)
+            ))
+            .limit(1);
+
+        if (existingReward.length > 0) {
+            // Update existing reward
+            await db.update(userLevels)
+                .set({ rewardRoleId: role.id })
+                .where(and(
+                    eq(userLevels.serverId, interaction.guild.id),
+                    eq(userLevels.level, level)
+                ));
+        } else {
+            // Create new reward entry
+            await db.insert(userLevels).values({
+                serverId: interaction.guild.id,
+                userId: null, // Special entry for rewards
+                level: level,
+                rewardRoleId: role.id,
+                xp: 0,
+                totalXp: 0
+            });
+        }
+
+        const embed = createAstraeeEmbed(
+            'Level Reward Set',
+            `Successfully set **${role}** as the reward for reaching **Level ${level}**! ✦\n\nUsers will automatically receive this role when they reach this level.`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error setting level reward:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Reward Set Error',
+            'Failed to set level reward. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle removing level rewards (admin only)
+async function handleLevelRemoveReward(interaction) {
+    const level = interaction.options.getInteger('level');
+
+    try {
+        // Remove reward
+        await db.delete(userLevels)
+            .where(and(
+                eq(userLevels.serverId, interaction.guild.id),
+                eq(userLevels.level, level),
+                eq(userLevels.userId, null) // Reward entries have null userId
+            ));
+
+        const embed = createAstraeeEmbed(
+            'Level Reward Removed',
+            `Successfully removed the reward for **Level ${level}**! ✦`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error removing level reward:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Reward Remove Error',
+            'Failed to remove level reward. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle viewing level rewards
+async function handleLevelRewards(interaction) {
+    try {
+        const rewards = await db.select().from(userLevels)
+            .where(and(
+                eq(userLevels.serverId, interaction.guild.id),
+                eq(userLevels.userId, null) // Reward entries have nulluserId
+            ))
+            .orderBy(asc(userLevels.level));
+
+        if (rewards.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Level Rewards',
+                'No level rewards are currently set.\n\nAdmins can set rewards using `/level setreward` ✦',
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create rewards embed
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Level Rewards ✦')
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Reaching new heights unlocks new possibilities." - Astraee ✦` })
+            .setTimestamp();
+
+        let rewardsText = '';
+        for (const reward of rewards) {
+            const role = interaction.guild.roles.cache.get(reward.rewardRoleId);
+            if (role) {
+                rewardsText += `**Level ${reward.level}:** ${role}\n`;
+            }
+        }
+
+        embed.addFields({
+            name: '🎁 Available Rewards',
+            value: rewardsText,
+            inline: false
+        });
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error fetching level rewards:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Rewards View Error',
+            'Failed to retrieve level rewards. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle resetting level data (admin only)
+async function handleLevelReset(interaction) {
+    const targetUser = interaction.options.getUser('user');
+
+    try {
+        if (targetUser) {
+            // Reset specific user
+            await db.delete(userLevels)
+                .where(and(
+                    eq(userLevels.serverId, interaction.guild.id),
+                    eq(userLevels.userId, targetUser.id)
+                ));
+
+            const embed = createAstraeeEmbed(
+                'User Level Reset',
+                `Successfully reset level data for **${targetUser.displayName}**! ✦`,
+                '#E74C3C'
+            );
+
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        } else {
+            // Reset all users
+            await db.delete(userLevels)
+                .where(and(
+                    eq(userLevels.serverId, interaction.guild.id),
+                    isNotNull(userLevels.userId) // Don't delete reward entries
+                ));
+
+            const embed = createAstraeeEmbed(
+                'All Levels Reset',
+                'Successfully reset level data for all users! ✦\n\n**Note:** Reward settings have been preserved.',
+                '#E74C3C'
+            );
+
+            await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Log the action
+        await db.insert(moderationLogs).values({
+            serverId: interaction.guild.id,
+            userId: targetUser?.id || 'all',
+            moderatorId: interaction.user.id,
+            action: 'levels_reset',
+            reason: `Reset ${targetUser ? `user ${targetUser.displayName}` : 'all user levels'}`
+        });
+
+    } catch (error) {
+        console.error('Error resetting levels:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Reset Error',
+            'Failed to reset level data. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Helper functions for level system
+function getXpRequiredForLevel(level) {
+    return Math.floor(100 + (level - 1) * 50 + Math.pow(level, 1.5) * 10);
+}
+
+function getLevelFromXp(totalXp) {
+    let level = 0;
+    let requiredXp = 0;
+    
+    while (requiredXp <= totalXp) {
+        level++;
+        requiredXp += getXpRequiredForLevel(level);
+    }
+    
+    return Math.max(0, level - 1);
+}
+
+function getTotalXpRequiredForLevel(level) {
+    let totalXp = 0;
+    for (let i = 1; i <= level; i++) {
+        totalXp += getXpRequiredForLevel(i);
+    }
+    return totalXp;
+}
+
+function createProgressBar(progress) {
+    const filledBlocks = Math.round(progress * 10);
+    const emptyBlocks = 10 - filledBlocks;
+    return `[${'█'.repeat(filledBlocks)}${'░'.repeat(emptyBlocks)}]`;
+}
+
+async function getUserRank(serverId, userId) {
+    try {
+        const allUsers = await db.select().from(userLevels)
+            .where(eq(userLevels.serverId, serverId))
+            .orderBy(desc(userLevels.totalXp));
+
+        const userIndex = allUsers.findIndex(user => user.userId === userId);
+        return userIndex >= 0 ? userIndex + 1 : 0;
+    } catch (error) {
+        console.error('Error calculating user rank:', error);
+        return 0;
+    }
+}
+
+async function giveXpToUser(serverId, userId, amount) {
+    try {
+        // Get current level data
+        const userLevel = await db.select().from(userLevels)
+            .where(and(
+                eq(userLevels.serverId, serverId),
+                eq(userLevels.userId, userId)
+            ))
+            .limit(1);
+
+        const currentData = userLevel.length > 0 ? userLevel[0] : {
+            userId,
+            serverId,
+            xp: 0,
+            level: 0,
+            totalXp: 0
+        };
+
+        const newTotalXp = currentData.totalXp + amount;
+        const newLevel = getLevelFromXp(newTotalXp);
+        const newCurrentXp = newTotalXp - getTotalXpRequiredForLevel(newLevel);
+
+        // Update or insert level data
+        if (userLevel.length > 0) {
+            await db.update(userLevels)
+                .set({
+                    xp: newCurrentXp,
+                    level: newLevel,
+                    totalXp: newTotalXp
+                })
+                .where(and(
+                    eq(userLevels.serverId, serverId),
+                    eq(userLevels.userId, userId)
+                ));
+        } else {
+            await db.insert(userLevels).values({
+                serverId,
+                userId,
+                xp: newCurrentXp,
+                level: newLevel,
+                totalXp: newTotalXp
+            });
+        }
+
+        // Check for level up and reward roles
+        if (newLevel > currentData.level) {
+            await handleLevelUp(serverId, userId, newLevel);
+        }
+
+    } catch (error) {
+        console.error('Error giving XP:', error);
+    }
+}
+
+async function handleLevelUp(serverId, userId, newLevel) {
+    try {
+        // Get guild and member
+        const guild = client.guilds.cache.get(serverId);
+        if (!guild) return;
+
+        const member = await guild.members.fetch(userId).catch(() => null);
+        if (!member) return;
+
+        // Check for reward role
+        const reward = await db.select().from(userLevels)
+            .where(and(
+                eq(userLevels.serverId, serverId),
+                eq(userLevels.level, newLevel),
+                eq(userLevels.userId, null)
+            ))
+            .limit(1);
+
+        if (reward.length > 0 && reward[0].rewardRoleId) {
+            const role = guild.roles.cache.get(reward[0].rewardRoleId);
+            if (role && !member.roles.cache.has(role.id)) {
+                try {
+                    await member.roles.add(role);
+                    console.log(`✦ Role ${role.name} given to ${member.user.displayName} for reaching level ${newLevel} ✦`);
+                } catch (error) {
+                    console.error('Error giving reward role:', error);
+                }
+            }
+        }
+
+        // Send congratulations message
+        const embed = createAstraeeEmbed(
+            'Level Up! 🎉',
+            `Congratulations ${member.user}! You've reached **Level ${newLevel}**! ✦\n\nYour dedication and engagement have been recognized.`,
+            '#27AE60'
+        );
+
+        // Try to send DM first, then fall back to a general channel
+        try {
+            await member.send({ embeds: [embed] });
+        } catch (error) {
+            // If DM fails, try to send to a general channel
+            const generalChannel = guild.channels.cache.find(ch => 
+                ch.isTextBased() && 
+                ch.permissionsFor(client.user).has(PermissionFlagsBits.SendMessages) &&
+                (ch.name.includes('general') || ch.name.includes('chat'))
+            );
+            
+            if (generalChannel) {
+                await generalChannel.send({ 
+                    content: `${member}`,
+                    embeds: [embed] 
+                });
+            }
+        }
+
+    } catch (error) {
+        console.error('Error handling level up:', error);
+    }
+}
+
+// Handle message XP (called from messageCreate event)
+async function handleMessageXp(message) {
+    try {
+        // Ignore bots and system messages
+        if (message.author.bot || message.system) return;
+        if (!message.guild) return;
+
+        const userId = message.author.id;
+        const serverId = message.guild.id;
+
+        // Random XP between 15-25
+        const xpAmount = Math.floor(Math.random() * 11) + 15;
+
+        await giveXpToUser(serverId, userId, xpAmount);
+
+    } catch (error) {
+        console.error('Error handling message XP:', error);
     }
 }
 
