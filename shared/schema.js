@@ -19,9 +19,15 @@ const embedTemplates = pgTable('embed_templates', {
   title: text('title'),
   description: text('description'),
   color: text('color').default('#9B59B6'),
-  footer: text('footer'),
+  authorName: text('author_name'),
+  authorIcon: text('author_icon'),
+  footerText: text('footer_text'),
+  footerIcon: text('footer_icon'),
+  showTimestamp: boolean('show_timestamp').default(true),
+  thumbnail: text('thumbnail'),
+  image: text('image'),
   fields: jsonb('fields').default([]),
-  authorId: text('author_id').notNull(),
+  createdBy: text('created_by').notNull(),
   serverId: text('server_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull()
@@ -54,7 +60,11 @@ const welcomeSettings = pgTable('welcome_settings', {
   goodbyeChannelId: text('goodbye_channel_id'),
   welcomeMessage: text('welcome_message').default('Welcome to our constellation, {user}! ✦'),
   goodbyeMessage: text('goodbye_message').default('Farewell, {user}. May your light shine elsewhere. ✦'),
-  // Rich embed settings
+  // New embed-based system
+  welcomeEmbedName: text('welcome_embed_name'),
+  goodbyeEmbedName: text('goodbye_embed_name'),
+  goodbyeType: text('goodbye_type').default('leave'), // leave, kick, ban
+  // Rich embed settings (legacy)
   useRichEmbed: boolean('use_rich_embed').default(false),
   embedTitle: text('embed_title').default('✦ A New Star Joins Us ✦'),
   embedDescription: text('embed_description'),

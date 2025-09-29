@@ -213,7 +213,7 @@ const commands = [
         .addSubcommand(subcommand =>
             subcommand
                 .setName('create')
-                .setDescription('Create a new embed template')
+                .setDescription('Create a new embed template with interactive editing buttons')
                 .addStringOption(option =>
                     option.setName('name')
                         .setDescription('Name for the embed template')
@@ -242,7 +242,7 @@ const commands = [
         .addSubcommand(subcommand =>
             subcommand
                 .setName('edit')
-                .setDescription('Edit embed components')
+                .setDescription('Edit embed components via chat bar (alternative to buttons)')
                 .addStringOption(option =>
                     option.setName('name')
                         .setDescription('Name of the embed template to edit')
@@ -257,7 +257,47 @@ const commands = [
                             { name: 'Footer', value: 'footer' },
                             { name: 'Images (Thumbnail, Image)', value: 'images' },
                             { name: 'Fields', value: 'fields' }
-                        )))
+                        ))
+                .addStringOption(option =>
+                    option.setName('title')
+                        .setDescription('New title (for basic component)')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('description')
+                        .setDescription('New description (for basic component)')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('color')
+                        .setDescription('New color hex code (for basic component)')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('author_name')
+                        .setDescription('New author name (for author component)')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('author_icon')
+                        .setDescription('New author icon URL (for author component)')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('footer_text')
+                        .setDescription('New footer text (for footer component)')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('footer_icon')
+                        .setDescription('New footer icon URL (for footer component)')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('thumbnail')
+                        .setDescription('New thumbnail URL (for images component)')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('image')
+                        .setDescription('New image URL (for images component)')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('fields')
+                        .setDescription('New fields JSON (for fields component)')
+                        .setRequired(false)))
         .addSubcommand(subcommand =>
             subcommand
                 .setName('template')
@@ -386,28 +426,43 @@ const commands = [
     // Community Management Commands
     new SlashCommandBuilder()
         .setName('welcomer')
-        .setDescription('Manage welcome and goodbye system with elegant precision')
+        .setDescription('Manage welcome system with embed selection')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-        .addSubcommand(subcommand => subcommand.setName('setup').setDescription('Setup welcome system with interactive builder')
-            .addChannelOption(option => option.setName('welcome_channel').setDescription('Channel for welcome messages'))
-            .addChannelOption(option => option.setName('goodbye_channel').setDescription('Channel for goodbye messages'))
-            .addStringOption(option => option.setName('type').setDescription('Type of welcome message')
-                .addChoices(
-                    { name: 'Simple Text', value: 'text' },
-                    { name: 'Rich Embed', value: 'embed' }
-                ))
-            .addStringOption(option => option.setName('message').setDescription('Welcome message template (use {user} for username)'))
-            .addStringOption(option => option.setName('title').setDescription('Embed title (for rich embeds)'))
-            .addStringOption(option => option.setName('description').setDescription('Embed description (for rich embeds)'))
-            .addStringOption(option => option.setName('color').setDescription('Embed color (hex code)'))
-            .addChannelOption(option => option.setName('rules_channel').setDescription('Rules channel for first steps'))
-            .addChannelOption(option => option.setName('start_here_channel').setDescription('Start here channel for first steps'))
-            .addChannelOption(option => option.setName('intro_channel').setDescription('Introduction channel for first steps')))
+        .addSubcommand(subcommand => subcommand.setName('setup').setDescription('Setup welcome system')
+            .addChannelOption(option => option.setName('channel').setDescription('Channel for welcome messages').setRequired(true))
+            .addStringOption(option => option.setName('embed').setDescription('Embed template to use for welcome messages').setRequired(true)))
         .addSubcommand(subcommand => subcommand.setName('toggle').setDescription('Enable/disable welcome system')
             .addBooleanOption(option => option.setName('enabled').setDescription('Enable welcome system').setRequired(true)))
         .addSubcommand(subcommand => subcommand.setName('test').setDescription('Test welcome message')
             .addChannelOption(option => option.setName('channel').setDescription('Channel to send test message to (defaults to welcome channel)')))
-        .addSubcommand(subcommand => subcommand.setName('status').setDescription('View current welcome system settings')),
+        .addSubcommand(subcommand => subcommand.setName('status').setDescription('View current welcome system settings'))
+        .addSubcommand(subcommand => subcommand.setName('reset').setDescription('Reset all welcome settings')),
+
+    new SlashCommandBuilder()
+        .setName('goodbye')
+        .setDescription('Manage goodbye system with embed selection')
+        .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
+        .addSubcommand(subcommand => subcommand.setName('setup').setDescription('Setup goodbye system')
+            .addChannelOption(option => option.setName('channel').setDescription('Channel for goodbye messages').setRequired(true))
+            .addStringOption(option => option.setName('embed').setDescription('Embed template to use for goodbye messages').setRequired(true))
+            .addStringOption(option => option.setName('type').setDescription('Type of goodbye message')
+                .addChoices(
+                    { name: 'Leave Message', value: 'leave' },
+                    { name: 'Kick Message', value: 'kick' },
+                    { name: 'Ban Message', value: 'ban' }
+                )))
+        .addSubcommand(subcommand => subcommand.setName('toggle').setDescription('Enable/disable goodbye system')
+            .addBooleanOption(option => option.setName('enabled').setDescription('Enable goodbye system').setRequired(true)))
+        .addSubcommand(subcommand => subcommand.setName('test').setDescription('Test goodbye message')
+            .addChannelOption(option => option.setName('channel').setDescription('Channel to send test message to (defaults to goodbye channel)'))
+            .addStringOption(option => option.setName('type').setDescription('Type of goodbye to test')
+                .addChoices(
+                    { name: 'Leave Message', value: 'leave' },
+                    { name: 'Kick Message', value: 'kick' },
+                    { name: 'Ban Message', value: 'ban' }
+                )))
+        .addSubcommand(subcommand => subcommand.setName('status').setDescription('View current goodbye system settings'))
+        .addSubcommand(subcommand => subcommand.setName('reset').setDescription('Reset all goodbye settings')),
 
     // Reaction Role Management
     new SlashCommandBuilder()
@@ -1209,6 +1264,9 @@ client.on('interactionCreate', async interaction => {
         // Community Management Commands
         else if (commandName === 'welcomer') {
             await handleWelcomer(interaction);
+        }
+        else if (commandName === 'goodbye') {
+            await handleGoodbye(interaction);
         }
         // Reaction Role Management
         else if (commandName === 'reactionrole') {
@@ -2131,6 +2189,9 @@ async function handleWelcomer(interaction) {
             case 'status':
                 await handleWelcomerStatus(interaction);
                 break;
+            case 'reset':
+                await handleWelcomerReset(interaction);
+                break;
         }
     } catch (error) {
         console.error('Error in welcomer command:', error);
@@ -2150,42 +2211,38 @@ async function handleWelcomer(interaction) {
 
 // Welcomer setup handler
 async function handleWelcomerSetup(interaction) {
-    const welcomeChannel = interaction.options.getChannel('welcome_channel');
-    const goodbyeChannel = interaction.options.getChannel('goodbye_channel');
-    const type = interaction.options.getString('type') || 'text';
-    const message = interaction.options.getString('message');
-    const title = interaction.options.getString('title');
-    const description = interaction.options.getString('description');
-    const color = interaction.options.getString('color');
-    const rulesChannel = interaction.options.getChannel('rules_channel');
-    const startHereChannel = interaction.options.getChannel('start_here_channel');
-    const introChannel = interaction.options.getChannel('intro_channel');
+    const channel = interaction.options.getChannel('channel');
+    const embedName = interaction.options.getString('embed');
 
     try {
+        // Check if embed template exists
+        const embedTemplate = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, embedName)
+            ))
+            .limit(1);
+
+        if (embedTemplate.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Embed Template Not Found',
+                `No embed template found with the name "${embedName}". Please create one first using \`/embed create\`.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
         // Check if settings already exist
         const existingSettings = await db.select().from(welcomeSettings)
             .where(eq(welcomeSettings.serverId, interaction.guild.id))
             .limit(1);
 
-        const updateData = {};
-        
-        if (welcomeChannel) updateData.welcomeChannelId = welcomeChannel.id;
-        if (goodbyeChannel) updateData.goodbyeChannelId = goodbyeChannel.id;
-        
-        if (type === 'text') {
-            updateData.useRichEmbed = false;
-            if (message) updateData.welcomeMessage = message;
-        } else if (type === 'embed') {
-            updateData.useRichEmbed = true;
-            if (title) updateData.embedTitle = title;
-            if (description) updateData.embedDescription = description;
-            if (color) updateData.embedColor = color;
-            if (message) updateData.welcomeMessage = message; // Fallback for embed description
-        }
-        
-        if (rulesChannel) updateData.rulesChannelId = rulesChannel.id;
-        if (startHereChannel) updateData.startHereChannelId = startHereChannel.id;
-        if (introChannel) updateData.introChannelId = introChannel.id;
+        const updateData = {
+            welcomeChannelId: channel.id,
+            welcomeEmbedName: embedName,
+            useRichEmbed: true,
+            enabled: true
+        };
 
         if (existingSettings.length > 0) {
             // Update existing settings
@@ -2199,16 +2256,14 @@ async function handleWelcomerSetup(interaction) {
             // Create new settings
             await db.insert(welcomeSettings).values({
                 serverId: interaction.guild.id,
-                enabled: true,
                 ...updateData,
-                welcomeMessage: message || 'Welcome to our constellation, {user}! ✦',
                 goodbyeMessage: 'Farewell, {user}. May your light shine elsewhere. ✦'
             });
         }
 
         const embed = createAstraeeEmbed(
             'Welcome System Configured',
-            `The welcome system has been configured with elegant precision.\n\n**Welcome Channel:** ${welcomeChannel ? welcomeChannel : 'Not set'}\n**Goodbye Channel:** ${goodbyeChannel ? goodbyeChannel : 'Not set'}\n**Message Type:** ${type === 'embed' ? 'Rich Embed' : 'Simple Text'}\n**Rules Channel:** ${rulesChannel ? rulesChannel : 'Not set'}\n**Start Here Channel:** ${startHereChannel ? startHereChannel : 'Not set'}\n**Intro Channel:** ${introChannel ? introChannel : 'Not set'}`,
+            `The welcome system has been configured with elegant precision.\n\n**Welcome Channel:** ${channel}\n**Welcome Embed:** ${embedName}\n\nNew members will now receive the selected embed template as their welcome message.`,
             '#9B59B6'
         );
 
@@ -2418,6 +2473,304 @@ async function handleWelcomerStatus(interaction) {
     }
 }
 
+// Welcomer reset handler
+async function handleWelcomerReset(interaction) {
+    try {
+        // Delete all welcome settings
+        await db.delete(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id));
+
+        const embed = createAstraeeEmbed(
+            'Welcome System Reset',
+            'All welcome settings have been reset with elegant precision.\n\nThe welcome system is now disabled and all configurations have been cleared.',
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error resetting welcomer:', error);
+        throw error;
+    }
+}
+
+// Goodbye command handler - Manage goodbye system with embed selection
+async function handleGoodbye(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'setup':
+                await handleGoodbyeSetup(interaction);
+                break;
+            case 'toggle':
+                await handleGoodbyeToggle(interaction);
+                break;
+            case 'test':
+                await handleGoodbyeTest(interaction);
+                break;
+            case 'status':
+                await handleGoodbyeStatus(interaction);
+                break;
+            case 'reset':
+                await handleGoodbyeReset(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in goodbye command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Goodbye Error',
+            'An error occurred while managing the goodbye system. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Goodbye setup handler
+async function handleGoodbyeSetup(interaction) {
+    const channel = interaction.options.getChannel('channel');
+    const embedName = interaction.options.getString('embed');
+    const type = interaction.options.getString('type') || 'leave';
+
+    try {
+        // Check if embed template exists
+        const embedTemplate = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, embedName)
+            ))
+            .limit(1);
+
+        if (embedTemplate.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Embed Template Not Found',
+                `No embed template found with the name "${embedName}". Please create one first using \`/embed create\`.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Check if settings already exist
+        const existingSettings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        const updateData = {
+            goodbyeChannelId: channel.id,
+            goodbyeEmbedName: embedName,
+            goodbyeType: type,
+            enabled: true
+        };
+
+        if (existingSettings.length > 0) {
+            // Update existing settings
+            await db.update(welcomeSettings)
+                .set({
+                    ...updateData,
+                    updatedAt: new Date()
+                })
+                .where(eq(welcomeSettings.serverId, interaction.guild.id));
+        } else {
+            // Create new settings
+            await db.insert(welcomeSettings).values({
+                serverId: interaction.guild.id,
+                ...updateData,
+                welcomeMessage: 'Welcome to our constellation, {user}! ✦'
+            });
+        }
+
+        const embed = createAstraeeEmbed(
+            'Goodbye System Configured',
+            `The goodbye system has been configured with elegant precision.\n\n**Goodbye Channel:** ${channel}\n**Goodbye Embed:** ${embedName}\n**Goodbye Type:** ${type}\n\nUsers will now receive the selected embed template when they ${type} the server.`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error setting up goodbye:', error);
+        throw error;
+    }
+}
+
+// Goodbye toggle handler
+async function handleGoodbyeToggle(interaction) {
+    const enabled = interaction.options.getBoolean('enabled');
+
+    try {
+        // Check if settings exist
+        const existingSettings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (existingSettings.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Goodbye System Not Configured',
+                'The goodbye system is not set up. Use `/goodbye setup` to configure it first.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Update enabled status
+        await db.update(welcomeSettings)
+            .set({ enabled: enabled })
+            .where(eq(welcomeSettings.serverId, interaction.guild.id));
+
+        const embed = createAstraeeEmbed(
+            'Goodbye System Updated',
+            `The goodbye system has been ${enabled ? 'enabled' : 'disabled'} with elegant precision.`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error toggling goodbye:', error);
+        throw error;
+    }
+}
+
+// Goodbye test handler
+async function handleGoodbyeTest(interaction) {
+    try {
+        // Get current settings
+        const settings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (settings.length === 0 || !settings[0].enabled) {
+            const embed = createAstraeeEmbed(
+                'Goodbye System Not Configured',
+                'The goodbye system is not set up or enabled. Use `/goodbye setup` to configure it.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Get test channel (use provided channel or default goodbye channel)
+        const testChannel = interaction.options.getChannel('channel') || 
+            (settings[0].goodbyeChannelId ? interaction.guild.channels.cache.get(settings[0].goodbyeChannelId) : null);
+
+        if (!testChannel) {
+            const embed = createAstraeeEmbed(
+                'No Channel Available',
+                'No goodbye channel has been configured and no test channel was provided. Use `/goodbye setup` to set a goodbye channel or specify a test channel.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Get embed template
+        const embedTemplate = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, settings[0].goodbyeEmbedName)
+            ))
+            .limit(1);
+
+        if (embedTemplate.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Embed Template Not Found',
+                `The goodbye embed template "${settings[0].goodbyeEmbedName}" was not found. Please update your goodbye settings.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Build and send test embed
+        const testEmbed = await buildEmbedFromTemplate(embedTemplate[0], interaction.guild, interaction.user);
+        await testChannel.send({ embeds: [testEmbed] });
+
+        // Send confirmation
+        const confirmEmbed = createAstraeeEmbed(
+            'Test Message Sent',
+            `Test goodbye message has been sent to ${testChannel}. The test uses your user as the "leaving member" to preview how the goodbye will look.`,
+            '#2ECC71'
+        );
+
+        await interaction.reply({ embeds: [confirmEmbed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error testing goodbye:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Test Failed',
+            'An error occurred while testing the goodbye message. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Goodbye status handler
+async function handleGoodbyeStatus(interaction) {
+    try {
+        const settings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (settings.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Goodbye System Not Configured',
+                'The goodbye system is not set up. Use `/goodbye setup` to configure it.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const goodbyeChannel = settings[0].goodbyeChannelId ? 
+            interaction.guild.channels.cache.get(settings[0].goodbyeChannelId) : null;
+
+        const embed = createAstraeeEmbed(
+            'Goodbye System Status',
+            `**Status:** ${settings[0].enabled ? 'Enabled ✨' : 'Disabled ❌'}\n**Goodbye Channel:** ${goodbyeChannel || 'Not set'}\n**Goodbye Embed:** ${settings[0].goodbyeEmbedName || 'Not set'}\n**Goodbye Type:** ${settings[0].goodbyeType || 'leave'}`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error getting goodbye status:', error);
+        throw error;
+    }
+}
+
+// Goodbye reset handler
+async function handleGoodbyeReset(interaction) {
+    try {
+        // Update settings to remove goodbye configuration
+        await db.update(welcomeSettings)
+            .set({
+                goodbyeChannelId: null,
+                goodbyeEmbedName: null,
+                goodbyeType: null
+            })
+            .where(eq(welcomeSettings.serverId, interaction.guild.id));
+
+        const embed = createAstraeeEmbed(
+            'Goodbye System Reset',
+            'All goodbye settings have been reset with elegant precision.\n\nThe goodbye system is now disabled and all configurations have been cleared.',
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error resetting goodbye:', error);
+        throw error;
+    }
+}
 
 // Reaction Role command handler - Manage reaction roles with elegant precision
 async function handleReactionRole(interaction) {
@@ -5671,7 +6024,7 @@ async function handleEmbedDelete(interaction) {
     }
 }
 
-// Handle embed editing (opens modal)
+// Handle embed editing via chat bar (alternative to buttons)
 async function handleEmbedEdit(interaction) {
     const name = interaction.options.getString('name');
     const component = interaction.options.getString('component');
@@ -5693,145 +6046,79 @@ async function handleEmbedEdit(interaction) {
             return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
         }
 
-        // Create modal based on component type
-        const modal = new ModalBuilder()
-            .setCustomId(`embed_modal_${component}_${name}`)
-            .setTitle(`Editing: ${name}`);
+        const updateData = {};
 
         switch (component) {
             case 'basic':
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('title')
-                            .setLabel('Title')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('Enter embed title...')
-                            .setValue(template[0].title || '')
-                            .setMaxLength(256)
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('description')
-                            .setLabel('Description')
-                            .setStyle(TextInputStyle.Paragraph)
-                            .setPlaceholder('Enter embed description...')
-                            .setValue(template[0].description || '')
-                            .setMaxLength(4000)
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('color')
-                            .setLabel('Hex Color')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('#9B59B6')
-                            .setValue(template[0].color || '#9B59B6')
-                            .setMaxLength(7)
-                    )
-                );
+                const title = interaction.options.getString('title');
+                const description = interaction.options.getString('description');
+                const color = interaction.options.getString('color');
+                
+                if (title) updateData.title = title;
+                if (description) updateData.description = description;
+                if (color) updateData.color = color;
                 break;
 
             case 'author':
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('author_name')
-                            .setLabel('Author Text')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('Enter author name...')
-                            .setValue(template[0].authorName || '')
-                            .setMaxLength(256)
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('author_icon')
-                            .setLabel('Author Image (optional)')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('https://cdn.example.com/icon.png')
-                            .setValue(template[0].authorIcon || '')
-                            .setRequired(false)
-                    )
-                );
+                const authorName = interaction.options.getString('author_name');
+                const authorIcon = interaction.options.getString('author_icon');
+                
+                if (authorName) updateData.authorName = authorName;
+                if (authorIcon) updateData.authorIcon = authorIcon;
                 break;
 
             case 'footer':
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('footer_text')
-                            .setLabel('Footer Text')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('Enter footer text...')
-                            .setValue(template[0].footerText || '')
-                            .setMaxLength(2048)
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('footer_icon')
-                            .setLabel('Footer Image (optional)')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('https://cdn.example.com/footer.png')
-                            .setValue(template[0].footerIcon || '')
-                            .setRequired(false)
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('timestamp')
-                            .setLabel('Timestamp? (yes/no)')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('yes')
-                            .setValue('yes')
-                            .setMaxLength(3)
-                    )
-                );
+                const footerText = interaction.options.getString('footer_text');
+                const footerIcon = interaction.options.getString('footer_icon');
+                
+                if (footerText) updateData.footerText = footerText;
+                if (footerIcon) updateData.footerIcon = footerIcon;
                 break;
 
             case 'images':
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('thumbnail')
-                            .setLabel('Thumbnail URL (optional)')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('https://cdn.example.com/thumb.png')
-                            .setValue(template[0].thumbnail || '')
-                            .setRequired(false)
-                    ),
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('image')
-                            .setLabel('Image URL (optional)')
-                            .setStyle(TextInputStyle.Short)
-                            .setPlaceholder('https://cdn.example.com/image.png')
-                            .setValue(template[0].image || '')
-                            .setRequired(false)
-                    )
-                );
+                const thumbnail = interaction.options.getString('thumbnail');
+                const image = interaction.options.getString('image');
+                
+                if (thumbnail) updateData.thumbnail = thumbnail;
+                if (image) updateData.image = image;
                 break;
 
             case 'fields':
-                modal.addComponents(
-                    new ActionRowBuilder().addComponents(
-                        new TextInputBuilder()
-                            .setCustomId('fields')
-                            .setLabel('Fields (JSON format)')
-                            .setStyle(TextInputStyle.Paragraph)
-                            .setPlaceholder('Enter fields in JSON format...')
-                            .setValue(template[0].fields || '')
-                            .setRequired(false)
-                    )
-                );
+                const fields = interaction.options.getString('fields');
+                if (fields) updateData.fields = fields;
                 break;
         }
 
-        await interaction.showModal(modal);
+        if (Object.keys(updateData).length === 0) {
+            const embed = createAstraeeEmbed(
+                'No Changes',
+                'No changes were provided. Please specify at least one field to update.',
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        await db.update(embedTemplates)
+            .set(updateData)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ));
+
+        const embed = createAstraeeEmbed(
+            'Template Updated',
+            `Embed template "${name}" has been updated with elegant precision.\n\n**Updated components:** ${Object.keys(updateData).join(', ')}`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
 
     } catch (error) {
-        console.error('Error showing edit modal:', error);
+        console.error('Error updating embed:', error);
         
         const embed = createAstraeeEmbed(
-            'Modal Error',
-            'Failed to open edit modal. Please try again later.',
+            'Update Error',
+            'Failed to update embed template. Please try again later.',
             '#E74C3C'
         );
         
