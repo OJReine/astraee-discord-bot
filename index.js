@@ -537,6 +537,7 @@ const commands = [
     new SlashCommandBuilder()
         .setName('stats')
         .setDescription('View stream statistics and leaderboards with elegant precision')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(subcommand =>
             subcommand
                 .setName('monthly')
@@ -564,7 +565,6 @@ const commands = [
             subcommand
                 .setName('submit')
                 .setDescription('Submit yearly summary (admin only)')
-                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
                 .addIntegerOption(option =>
                     option.setName('year')
                         .setDescription('Year for the summary (default: current year)')
@@ -612,6 +612,7 @@ const commands = [
     new SlashCommandBuilder()
         .setName('level')
         .setDescription('View and manage user levels with elegant precision')
+        .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
         .addSubcommand(subcommand =>
             subcommand
                 .setName('view')
@@ -632,7 +633,6 @@ const commands = [
             subcommand
                 .setName('give')
                 .setDescription('Give XP to a user (admin only)')
-                .setDefaultMemberPermissions(PermissionFlagsBits.ManageRoles)
                 .addUserOption(option =>
                     option.setName('user')
                         .setDescription('User to give XP to')
@@ -651,7 +651,6 @@ const commands = [
             subcommand
                 .setName('setreward')
                 .setDescription('Set level reward roles (admin only)')
-                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
                 .addIntegerOption(option =>
                     option.setName('level')
                         .setDescription('Level to set reward for')
@@ -666,7 +665,6 @@ const commands = [
             subcommand
                 .setName('removereward')
                 .setDescription('Remove level reward role (admin only)')
-                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
                 .addIntegerOption(option =>
                     option.setName('level')
                         .setDescription('Level to remove reward for')
@@ -681,7 +679,6 @@ const commands = [
             subcommand
                 .setName('reset')
                 .setDescription('Reset user level data (admin only)')
-                .setDefaultMemberPermissions(PermissionFlagsBits.Administrator)
                 .addUserOption(option =>
                     option.setName('user')
                         .setDescription('User to reset (leave empty for all users)')
