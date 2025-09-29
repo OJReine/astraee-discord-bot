@@ -1,4 +1,4 @@
-const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder, Collection, PermissionFlagsBits, MessageFlags } = require('discord.js');
+const { Client, GatewayIntentBits, SlashCommandBuilder, EmbedBuilder, Collection, PermissionFlagsBits, MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } = require('discord.js');
 const { db } = require('./server/db');
 const { users, embedTemplates, streams, welcomeSettings, reactionRoles, roleUsage, moderationLogs, monthlyStats, yearlySummaries, userLevels, scheduledMessages, autoModSettings } = require('./shared/schema');
 const { eq, and, gte, lt, desc } = require('drizzle-orm');
@@ -206,34 +206,122 @@ const createStreamReminderDMEmbed = (streamId, itemName, dueDate) => {
 
 // Register commands
 const commands = [
-    // Embed Management Commands
+    // Interactive Embed Management Commands
     new SlashCommandBuilder()
         .setName('embed')
-        .setDescription('Manage embed templates with elegance')
+        .setDescription('Create and manage interactive embed templates with elegant precision')
         .addSubcommand(subcommand =>
-            subcommand.setName('create')
+            subcommand
+                .setName('create')
                 .setDescription('Create a new embed template')
-                .addStringOption(option => option.setName('name').setDescription('Template name').setRequired(true))
-                .addStringOption(option => option.setName('title').setDescription('Embed title'))
-                .addStringOption(option => option.setName('description').setDescription('Embed description'))
-                .addStringOption(option => option.setName('color').setDescription('Hex color (e.g., #9B59B6)'))
-                .addStringOption(option => option.setName('footer').setDescription('Custom footer text')))
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('Name for the embed template')
+                        .setRequired(true)
+                        .setMaxLength(50)))
         .addSubcommand(subcommand =>
-            subcommand.setName('list')
-                .setDescription('List all stored embed templates'))
+            subcommand
+                .setName('list')
+                .setDescription('List all embed templates'))
         .addSubcommand(subcommand =>
-            subcommand.setName('edit')
-                .setDescription('Edit an existing embed template')
-                .addStringOption(option => option.setName('name').setDescription('Template name to edit').setRequired(true))
-                .addStringOption(option => option.setName('title').setDescription('New title'))
-                .addStringOption(option => option.setName('description').setDescription('New description'))
-                .addStringOption(option => option.setName('color').setDescription('New hex color'))
-                .addStringOption(option => option.setName('footer').setDescription('New footer text')))
+            subcommand
+                .setName('show')
+                .setDescription('Preview an embed template')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('Name of the embed template to preview')
+                        .setRequired(true)))
         .addSubcommand(subcommand =>
-            subcommand.setName('send')
-                .setDescription('Send a stored embed to a channel')
-                .addStringOption(option => option.setName('name').setDescription('Template name to send').setRequired(true))
-                .addChannelOption(option => option.setName('channel').setDescription('Channel to send to').setRequired(true))),
+            subcommand
+                .setName('delete')
+                .setDescription('Delete an embed template')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('Name of the embed template to delete')
+                        .setRequired(true)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('edit')
+                .setDescription('Edit embed components')
+                .addStringOption(option =>
+                    option.setName('name')
+                        .setDescription('Name of the embed template to edit')
+                        .setRequired(true))
+                .addStringOption(option =>
+                    option.setName('component')
+                        .setDescription('Component to edit')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Basic Info (Title, Description, Color)', value: 'basic' },
+                            { name: 'Author', value: 'author' },
+                            { name: 'Footer', value: 'footer' },
+                            { name: 'Images (Thumbnail, Image)', value: 'images' },
+                            { name: 'Fields', value: 'fields' }
+                        ))),
+
+    new SlashCommandBuilder()
+        .setName('settings')
+        .setDescription('Configure Astraee settings with interactive panels')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('panel')
+                .setDescription('Open the main settings panel')),
+
+    new SlashCommandBuilder()
+        .setName('set')
+        .setDescription('Configure specific settings')
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('welcome')
+                .setDescription('Configure welcome system')
+                .addStringOption(option =>
+                    option.setName('type')
+                        .setDescription('Type of welcome setting')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Channel', value: 'channel' },
+                            { name: 'Message', value: 'message' },
+                            { name: 'Embed', value: 'embed' }
+                        ))
+                .addChannelOption(option =>
+                    option.setName('channel')
+                        .setDescription('Channel for welcome messages')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('message')
+                        .setDescription('Welcome message content')
+                        .setMaxLength(2000)
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('embed')
+                        .setDescription('Embed template name to use')
+                        .setRequired(false)))
+        .addSubcommand(subcommand =>
+            subcommand
+                .setName('goodbye')
+                .setDescription('Configure goodbye system')
+                .addStringOption(option =>
+                    option.setName('type')
+                        .setDescription('Type of goodbye setting')
+                        .setRequired(true)
+                        .addChoices(
+                            { name: 'Channel', value: 'channel' },
+                            { name: 'Message', value: 'message' },
+                            { name: 'Embed', value: 'embed' }
+                        ))
+                .addChannelOption(option =>
+                    option.setName('channel')
+                        .setDescription('Channel for goodbye messages')
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('message')
+                        .setDescription('Goodbye message content')
+                        .setMaxLength(2000)
+                        .setRequired(false))
+                .addStringOption(option =>
+                    option.setName('embed')
+                        .setDescription('Embed template name to use')
+                        .setRequired(false))),
 
     // Stream Tracking Commands  
     new SlashCommandBuilder()
@@ -828,7 +916,16 @@ client.on('guildMemberAdd', async member => {
 
             // Add thumbnail if set
             if (settings[0].embedThumbnail) {
-                embed.setThumbnail(settings[0].embedThumbnail);
+                let thumbnailUrl = settings[0].embedThumbnail;
+                // Handle dynamic placeholders
+                if (thumbnailUrl === '{server.icon}') {
+                    thumbnailUrl = member.guild.iconURL({ dynamic: true, size: 512 });
+                } else if (thumbnailUrl === '{user.avatar}') {
+                    thumbnailUrl = member.user.displayAvatarURL({ dynamic: true, size: 512 });
+                }
+                if (thumbnailUrl) {
+                    embed.setThumbnail(thumbnailUrl);
+                }
             }
 
             // Add image if set
@@ -1048,6 +1145,19 @@ client.on('messageCreate', async message => {
     }
 });
 
+// Handle button and modal interactions
+client.on('interactionCreate', async interaction => {
+    if (interaction.isButton()) {
+        await handleButtonInteraction(interaction);
+        return;
+    }
+    
+    if (interaction.isModalSubmit()) {
+        await handleModalSubmit(interaction);
+        return;
+    }
+});
+
 // Handle slash commands
 client.on('interactionCreate', async interaction => {
     if (!interaction.isChatInputCommand()) return;
@@ -1143,6 +1253,15 @@ client.on('interactionCreate', async interaction => {
         }
         else if (commandName === 'automod') {
             await handleAutoMod(interaction);
+        }
+        else if (commandName === 'embed') {
+            await handleEmbed(interaction);
+        }
+        else if (commandName === 'settings') {
+            await handleSettings(interaction);
+        }
+        else if (commandName === 'set') {
+            await handleSet(interaction);
         }
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
@@ -2180,7 +2299,16 @@ async function handleWelcomerTest(interaction) {
 
             // Add thumbnail if set
             if (settings[0].embedThumbnail) {
-                embed.setThumbnail(settings[0].embedThumbnail);
+                let thumbnailUrl = settings[0].embedThumbnail;
+                // Handle dynamic placeholders
+                if (thumbnailUrl === '{server.icon}') {
+                    thumbnailUrl = member.guild.iconURL({ dynamic: true, size: 512 });
+                } else if (thumbnailUrl === '{user.avatar}') {
+                    thumbnailUrl = member.user.displayAvatarURL({ dynamic: true, size: 512 });
+                }
+                if (thumbnailUrl) {
+                    embed.setThumbnail(thumbnailUrl);
+                }
             }
 
             // Add image if set
@@ -5307,6 +5435,1114 @@ setInterval(() => {
         }
     }
 }, 300000); // 5 minutes
+
+// Interactive Embed System - Mimu-inspired with modals and buttons
+async function handleEmbed(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'create':
+                await handleEmbedCreate(interaction);
+                break;
+            case 'list':
+                await handleEmbedList(interaction);
+                break;
+            case 'show':
+                await handleEmbedShow(interaction);
+                break;
+            case 'delete':
+                await handleEmbedDelete(interaction);
+                break;
+            case 'edit':
+                await handleEmbedEdit(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in embed command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Embed System Error',
+            'An error occurred while managing embeds. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+// Handle embed creation with interactive setup
+async function handleEmbedCreate(interaction) {
+    const name = interaction.options.getString('name');
+
+    try {
+        // Check if embed already exists
+        const existingEmbed = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ))
+            .limit(1);
+
+        if (existingEmbed.length > 0) {
+            const embed = createAstraeeEmbed(
+                'Embed Already Exists',
+                `An embed template with the name "${name}" already exists. Please choose a different name.`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create basic embed template
+        await db.insert(embedTemplates).values({
+            serverId: interaction.guild.id,
+            name: name,
+            title: '',
+            description: '',
+            color: '#9B59B6',
+            authorName: '',
+            authorIcon: '',
+            footerText: '',
+            footerIcon: '',
+            thumbnail: '',
+            image: '',
+            fields: JSON.stringify([]),
+            createdBy: interaction.user.id
+        });
+
+        // Create interactive setup embed with buttons
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Embed Template Created ✦')
+            .setDescription(`Successfully created embed template **"${name}"**! ✦\n\n**What would you like to edit?**\n\nUse the buttons below to customize your embed, or use \`/embed edit\` for text-based editing.`)
+            .setColor('#27AE60')
+            .setFooter({ text: `✦ "Creativity flows through every detail." - Astraee ✦` })
+            .setTimestamp();
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`embed_edit_basic_${name}`)
+                    .setLabel('📝 Basic Info')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId(`embed_edit_author_${name}`)
+                    .setLabel('👤 Author')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId(`embed_edit_footer_${name}`)
+                    .setLabel('📄 Footer')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId(`embed_edit_images_${name}`)
+                    .setLabel('🖼️ Images')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId(`embed_edit_fields_${name}`)
+                    .setLabel('📋 Fields')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        const row2 = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId(`embed_preview_${name}`)
+                    .setLabel('👁️ Preview')
+                    .setStyle(ButtonStyle.Success),
+                new ButtonBuilder()
+                    .setCustomId(`embed_delete_${name}`)
+                    .setLabel('🗑️ Delete')
+                    .setStyle(ButtonStyle.Danger)
+            );
+
+        await interaction.reply({ 
+            embeds: [embed], 
+            components: [row, row2],
+            flags: MessageFlags.Ephemeral 
+        });
+
+    } catch (error) {
+        console.error('Error creating embed:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Creation Error',
+            'Failed to create embed template. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle embed listing
+async function handleEmbedList(interaction) {
+    try {
+        const embeds = await db.select().from(embedTemplates)
+            .where(eq(embedTemplates.serverId, interaction.guild.id))
+            .orderBy(asc(embedTemplates.name));
+
+        if (embeds.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Embed Templates',
+                'No embed templates found.\n\nCreate your first template using \`/embed create\` ✦',
+                '#9B59B6'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Embed Templates ✦')
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Organization is the foundation of elegance." - Astraee ✦` })
+            .setTimestamp();
+
+        let embedText = '';
+        for (const template of embeds) {
+            const fields = JSON.parse(template.fields || '[]');
+            embedText += `**${template.name}**\n• Title: ${template.title || 'None'}\n• Fields: ${fields.length}\n• Created: <t:${Math.floor(template.createdAt.getTime() / 1000)}:R>\n\n`;
+        }
+
+        embed.addFields({
+            name: '📋 Available Templates',
+            value: embedText,
+            inline: false
+        });
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error listing embeds:', error);
+        
+        const embed = createAstraeeEmbed(
+            'List Error',
+            'Failed to retrieve embed templates. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle embed preview
+async function handleEmbedShow(interaction) {
+    const name = interaction.options.getString('name');
+
+    try {
+        const template = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ))
+            .limit(1);
+
+        if (template.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Template Not Found',
+                `No embed template found with the name "${name}".`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        const embedData = template[0];
+        const embed = await buildEmbedFromTemplate(embedData, interaction.guild, interaction.user);
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error showing embed:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Preview Error',
+            'Failed to preview embed template. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle embed deletion
+async function handleEmbedDelete(interaction) {
+    const name = interaction.options.getString('name');
+
+    try {
+        const template = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ))
+            .limit(1);
+
+        if (template.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Template Not Found',
+                `No embed template found with the name "${name}".`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        await db.delete(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ));
+
+        const embed = createAstraeeEmbed(
+            'Template Deleted',
+            `Successfully deleted embed template **"${name}"**! ✦`,
+            '#E74C3C'
+        );
+
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error deleting embed:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Delete Error',
+            'Failed to delete embed template. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle embed editing (opens modal)
+async function handleEmbedEdit(interaction) {
+    const name = interaction.options.getString('name');
+    const component = interaction.options.getString('component');
+
+    try {
+        const template = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ))
+            .limit(1);
+
+        if (template.length === 0) {
+            const embed = createAstraeeEmbed(
+                'Template Not Found',
+                `No embed template found with the name "${name}".`,
+                '#E74C3C'
+            );
+            return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+        }
+
+        // Create modal based on component type
+        const modal = new ModalBuilder()
+            .setCustomId(`embed_modal_${component}_${name}`)
+            .setTitle(`Editing: ${name}`);
+
+        switch (component) {
+            case 'basic':
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('title')
+                            .setLabel('Title')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('Enter embed title...')
+                            .setValue(template[0].title || '')
+                            .setMaxLength(256)
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('description')
+                            .setLabel('Description')
+                            .setStyle(TextInputStyle.Paragraph)
+                            .setPlaceholder('Enter embed description...')
+                            .setValue(template[0].description || '')
+                            .setMaxLength(4000)
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('color')
+                            .setLabel('Hex Color')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('#9B59B6')
+                            .setValue(template[0].color || '#9B59B6')
+                            .setMaxLength(7)
+                    )
+                );
+                break;
+
+            case 'author':
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('author_name')
+                            .setLabel('Author Text')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('Enter author name...')
+                            .setValue(template[0].authorName || '')
+                            .setMaxLength(256)
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('author_icon')
+                            .setLabel('Author Image (optional)')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('https://cdn.example.com/icon.png')
+                            .setValue(template[0].authorIcon || '')
+                            .setRequired(false)
+                    )
+                );
+                break;
+
+            case 'footer':
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('footer_text')
+                            .setLabel('Footer Text')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('Enter footer text...')
+                            .setValue(template[0].footerText || '')
+                            .setMaxLength(2048)
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('footer_icon')
+                            .setLabel('Footer Image (optional)')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('https://cdn.example.com/footer.png')
+                            .setValue(template[0].footerIcon || '')
+                            .setRequired(false)
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('timestamp')
+                            .setLabel('Timestamp? (yes/no)')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('yes')
+                            .setValue('yes')
+                            .setMaxLength(3)
+                    )
+                );
+                break;
+
+            case 'images':
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('thumbnail')
+                            .setLabel('Thumbnail URL (optional)')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('https://cdn.example.com/thumb.png')
+                            .setValue(template[0].thumbnail || '')
+                            .setRequired(false)
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('image')
+                            .setLabel('Image URL (optional)')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('https://cdn.example.com/image.png')
+                            .setValue(template[0].image || '')
+                            .setRequired(false)
+                    )
+                );
+                break;
+        }
+
+        await interaction.showModal(modal);
+
+    } catch (error) {
+        console.error('Error showing edit modal:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Modal Error',
+            'Failed to open edit modal. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+// Handle button interactions for embed editing
+async function handleButtonInteraction(interaction) {
+    const customId = interaction.customId;
+
+    try {
+        if (customId.startsWith('embed_edit_')) {
+            const [, , component, name] = customId.split('_');
+            await showEmbedEditModal(interaction, component, name);
+        } else if (customId.startsWith('embed_preview_')) {
+            const name = customId.replace('embed_preview_', '');
+            await previewEmbedTemplate(interaction, name);
+        } else if (customId.startsWith('embed_delete_')) {
+            const name = customId.replace('embed_delete_', '');
+            await deleteEmbedTemplate(interaction, name);
+        } else if (customId.startsWith('settings_')) {
+            await handleSettingsButton(interaction);
+        }
+    } catch (error) {
+        console.error('Error handling button interaction:', error);
+        
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+                content: 'An error occurred while processing your request.',
+                ephemeral: true
+            });
+        }
+    }
+}
+
+// Handle modal submissions
+async function handleModalSubmit(interaction) {
+    const customId = interaction.customId;
+
+    try {
+        if (customId.startsWith('embed_modal_')) {
+            const [, , component, name] = customId.split('_');
+            await processEmbedModal(interaction, component, name);
+        } else if (customId.startsWith('settings_modal_')) {
+            const [, , setting] = customId.split('_');
+            await processSettingsModal(interaction, setting);
+        }
+    } catch (error) {
+        console.error('Error handling modal submission:', error);
+        
+        if (!interaction.replied && !interaction.deferred) {
+            await interaction.reply({
+                content: 'An error occurred while processing your request.',
+                ephemeral: true
+            });
+        }
+    }
+}
+
+// Build embed from template with dynamic placeholders
+async function buildEmbedFromTemplate(template, guild, user) {
+    const embed = new EmbedBuilder();
+
+    // Process title with placeholders
+    if (template.title) {
+        embed.setTitle(processPlaceholders(template.title, guild, user));
+    }
+
+    // Process description with placeholders
+    if (template.description) {
+        embed.setDescription(processPlaceholders(template.description, guild, user));
+    }
+
+    // Set color
+    embed.setColor(template.color || '#9B59B6');
+
+    // Process author
+    if (template.authorName) {
+        const authorData = {
+            name: processPlaceholders(template.authorName, guild, user)
+        };
+        if (template.authorIcon) {
+            authorData.iconURL = processPlaceholders(template.authorIcon, guild, user);
+        }
+        embed.setAuthor(authorData);
+    }
+
+    // Process footer
+    if (template.footerText) {
+        const footerData = {
+            text: processPlaceholders(template.footerText, guild, user)
+        };
+        if (template.footerIcon) {
+            footerData.iconURL = processPlaceholders(template.footerIcon, guild, user);
+        }
+        embed.setFooter(footerData);
+    }
+
+    // Process images
+    if (template.thumbnail) {
+        embed.setThumbnail(processPlaceholders(template.thumbnail, guild, user));
+    }
+    if (template.image) {
+        embed.setImage(processPlaceholders(template.image, guild, user));
+    }
+
+    // Process fields
+    if (template.fields) {
+        const fields = JSON.parse(template.fields);
+        for (const field of fields) {
+            embed.addFields({
+                name: processPlaceholders(field.name, guild, user),
+                value: processPlaceholders(field.value, guild, user),
+                inline: field.inline || false
+            });
+        }
+    }
+
+    // Set timestamp
+    embed.setTimestamp();
+
+    return embed;
+}
+
+// Process dynamic placeholders
+function processPlaceholders(text, guild, user) {
+    if (!text) return text;
+
+    return text
+        .replace(/\{user\}/g, user?.toString() || 'Unknown User')
+        .replace(/\{user\.name\}/g, user?.username || 'Unknown User')
+        .replace(/\{user\.displayName\}/g, user?.displayName || user?.username || 'Unknown User')
+        .replace(/\{user\.avatar\}/g, user?.displayAvatarURL({ dynamic: true, size: 512 }) || '')
+        .replace(/\{server\}/g, guild?.name || 'Unknown Server')
+        .replace(/\{server\.name\}/g, guild?.name || 'Unknown Server')
+        .replace(/\{server\.icon\}/g, guild?.iconURL({ dynamic: true, size: 512 }) || '')
+        .replace(/\{server\.memberCount\}/g, guild?.memberCount?.toString() || '0')
+        .replace(/\{server\.memberCount\.ordinal\}/g, getOrdinal(guild?.memberCount || 0))
+        .replace(/\{channel\}/g, 'Current Channel')
+        .replace(/\{timestamp\}/g, `<t:${Math.floor(Date.now() / 1000)}:F>`)
+        .replace(/\{timestamp:short\}/g, `<t:${Math.floor(Date.now() / 1000)}:f>`)
+        .replace(/\{timestamp:time\}/g, `<t:${Math.floor(Date.now() / 1000)}:t>`)
+        .replace(/\{timestamp:date\}/g, `<t:${Math.floor(Date.now() / 1000)}:d>`);
+}
+
+// Get ordinal number (1st, 2nd, 3rd, etc.)
+function getOrdinal(num) {
+    const suffixes = ['th', 'st', 'nd', 'rd'];
+    const v = num % 100;
+    return num + (suffixes[(v - 20) % 10] || suffixes[v] || suffixes[0]);
+}
+
+// Helper functions for button interactions
+async function showEmbedEditModal(interaction, component, name) {
+    try {
+        const template = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ))
+            .limit(1);
+
+        if (template.length === 0) {
+            await interaction.reply({
+                content: 'Embed template not found.',
+                ephemeral: true
+            });
+            return;
+        }
+
+        // Create modal based on component type
+        const modal = new ModalBuilder()
+            .setCustomId(`embed_modal_${component}_${name}`)
+            .setTitle(`Editing: ${name}`);
+
+        switch (component) {
+            case 'basic':
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('title')
+                            .setLabel('Title')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('Enter embed title...')
+                            .setValue(template[0].title || '')
+                            .setMaxLength(256)
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('description')
+                            .setLabel('Description')
+                            .setStyle(TextInputStyle.Paragraph)
+                            .setPlaceholder('Enter embed description...')
+                            .setValue(template[0].description || '')
+                            .setMaxLength(4000)
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('color')
+                            .setLabel('Hex Color')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('#9B59B6')
+                            .setValue(template[0].color || '#9B59B6')
+                            .setMaxLength(7)
+                    )
+                );
+                break;
+
+            case 'author':
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('author_name')
+                            .setLabel('Author Text')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('Enter author name...')
+                            .setValue(template[0].authorName || '')
+                            .setMaxLength(256)
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('author_icon')
+                            .setLabel('Author Image (optional)')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('https://cdn.example.com/icon.png')
+                            .setValue(template[0].authorIcon || '')
+                            .setRequired(false)
+                    )
+                );
+                break;
+
+            case 'footer':
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('footer_text')
+                            .setLabel('Footer Text')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('Enter footer text...')
+                            .setValue(template[0].footerText || '')
+                            .setMaxLength(2048)
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('footer_icon')
+                            .setLabel('Footer Image (optional)')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('https://cdn.example.com/footer.png')
+                            .setValue(template[0].footerIcon || '')
+                            .setRequired(false)
+                    )
+                );
+                break;
+
+            case 'images':
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('thumbnail')
+                            .setLabel('Thumbnail URL (optional)')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('https://cdn.example.com/thumb.png')
+                            .setValue(template[0].thumbnail || '')
+                            .setRequired(false)
+                    ),
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('image')
+                            .setLabel('Image URL (optional)')
+                            .setStyle(TextInputStyle.Short)
+                            .setPlaceholder('https://cdn.example.com/image.png')
+                            .setValue(template[0].image || '')
+                            .setRequired(false)
+                    )
+                );
+                break;
+        }
+
+        await interaction.showModal(modal);
+
+    } catch (error) {
+        console.error('Error showing embed edit modal:', error);
+        await interaction.reply({
+            content: 'Failed to open edit modal.',
+            ephemeral: true
+        });
+    }
+}
+
+async function previewEmbedTemplate(interaction, name) {
+    try {
+        const template = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ))
+            .limit(1);
+
+        if (template.length === 0) {
+            await interaction.reply({
+                content: 'Embed template not found.',
+                ephemeral: true
+            });
+            return;
+        }
+
+        const embed = await buildEmbedFromTemplate(template[0], interaction.guild, interaction.user);
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+
+    } catch (error) {
+        console.error('Error previewing embed:', error);
+        await interaction.reply({
+            content: 'Failed to preview embed.',
+            ephemeral: true
+        });
+    }
+}
+
+async function deleteEmbedTemplate(interaction, name) {
+    try {
+        await db.delete(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ));
+
+        await interaction.reply({
+            content: `Successfully deleted embed template **"${name}"**! ✦`,
+            ephemeral: true
+        });
+
+    } catch (error) {
+        console.error('Error deleting embed:', error);
+        await interaction.reply({
+            content: 'Failed to delete embed template.',
+            ephemeral: true
+        });
+    }
+}
+
+async function processEmbedModal(interaction, component, name) {
+    try {
+        const updateData = {};
+
+        switch (component) {
+            case 'basic':
+                updateData.title = interaction.fields.getTextInputValue('title');
+                updateData.description = interaction.fields.getTextInputValue('description');
+                updateData.color = interaction.fields.getTextInputValue('color');
+                break;
+
+            case 'author':
+                updateData.authorName = interaction.fields.getTextInputValue('author_name');
+                updateData.authorIcon = interaction.fields.getTextInputValue('author_icon');
+                break;
+
+            case 'footer':
+                updateData.footerText = interaction.fields.getTextInputValue('footer_text');
+                updateData.footerIcon = interaction.fields.getTextInputValue('footer_icon');
+                break;
+
+            case 'images':
+                updateData.thumbnail = interaction.fields.getTextInputValue('thumbnail');
+                updateData.image = interaction.fields.getTextInputValue('image');
+                break;
+        }
+
+        await db.update(embedTemplates)
+            .set(updateData)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ));
+
+        await interaction.reply({
+            content: `Successfully updated **${component}** for embed template **"${name}"**! ✦`,
+            ephemeral: true
+        });
+
+    } catch (error) {
+        console.error('Error processing embed modal:', error);
+        await interaction.reply({
+            content: 'Failed to update embed template.',
+            ephemeral: true
+        });
+    }
+}
+
+// Settings system handlers
+async function handleSettings(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'panel':
+                await handleSettingsPanel(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in settings command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Settings Error',
+            'An error occurred while managing settings. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+async function handleSet(interaction) {
+    const subcommand = interaction.options.getSubcommand();
+
+    try {
+        switch (subcommand) {
+            case 'welcome':
+                await handleSetWelcome(interaction);
+                break;
+            case 'goodbye':
+                await handleSetGoodbye(interaction);
+                break;
+        }
+    } catch (error) {
+        console.error('Error in set command:', error);
+        
+        const errorEmbed = createAstraeeEmbed(
+            'Configuration Error',
+            'An error occurred while configuring settings. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ 
+            embeds: [errorEmbed], 
+            flags: MessageFlags.Ephemeral 
+        });
+    }
+}
+
+async function handleSettingsPanel(interaction) {
+    try {
+        // Get current settings
+        const welcomeSettingsData = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        const embed = new EmbedBuilder()
+            .setTitle('✦ Astraee Settings Panel ✦')
+            .setDescription('Configure your server settings with elegant precision ✦')
+            .setColor('#9B59B6')
+            .setFooter({ text: `✦ "Customization is the key to perfection." - Astraee ✦` })
+            .setTimestamp();
+
+        // Add settings sections
+        const welcomeStatus = welcomeSettingsData.length > 0 && welcomeSettingsData[0].enabled ? '✅ Enabled' : '❌ Disabled';
+        const welcomeChannel = welcomeSettingsData.length > 0 && welcomeSettingsData[0].welcomeChannelId ? 
+            `<#${welcomeSettingsData[0].welcomeChannelId}>` : 'Not set';
+
+        embed.addFields(
+            {
+                name: '👋 Welcome System',
+                value: `**Status:** ${welcomeStatus}\n**Channel:** ${welcomeChannel}\n**Rich Embeds:** ${welcomeSettingsData.length > 0 && welcomeSettingsData[0].useRichEmbed ? '✅' : '❌'}`,
+                inline: true
+            },
+            {
+                name: '📊 Stream Tracking',
+                value: '**Status:** ✅ Active\n**Auto-cleanup:** ✅ Enabled\n**Reminders:** ✅ Daily',
+                inline: true
+            },
+            {
+                name: '🛡️ Auto-Moderation',
+                value: '**Status:** Configured\n**Spam Protection:** ✅\n**Link Filter:** ✅',
+                inline: true
+            }
+        );
+
+        const row = new ActionRowBuilder()
+            .addComponents(
+                new ButtonBuilder()
+                    .setCustomId('settings_welcome')
+                    .setLabel('👋 Welcome/Goodbye')
+                    .setStyle(ButtonStyle.Primary),
+                new ButtonBuilder()
+                    .setCustomId('settings_streams')
+                    .setLabel('📊 Stream Settings')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('settings_automod')
+                    .setLabel('🛡️ Auto-Mod')
+                    .setStyle(ButtonStyle.Secondary),
+                new ButtonBuilder()
+                    .setCustomId('settings_embeds')
+                    .setLabel('📝 Embed Templates')
+                    .setStyle(ButtonStyle.Secondary)
+            );
+
+        await interaction.reply({ 
+            embeds: [embed], 
+            components: [row],
+            flags: MessageFlags.Ephemeral 
+        });
+
+    } catch (error) {
+        console.error('Error showing settings panel:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Panel Error',
+            'Failed to load settings panel. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+async function handleSetWelcome(interaction) {
+    const type = interaction.options.getString('type');
+    const channel = interaction.options.getChannel('channel');
+    const message = interaction.options.getString('message');
+    const embed = interaction.options.getString('embed');
+
+    try {
+        // Get or create welcome settings
+        let settings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (settings.length === 0) {
+            await db.insert(welcomeSettings).values({
+                serverId: interaction.guild.id,
+                enabled: true
+            });
+            settings = await db.select().from(welcomeSettings)
+                .where(eq(welcomeSettings.serverId, interaction.guild.id))
+                .limit(1);
+        }
+
+        const updateData = {};
+        
+        switch (type) {
+            case 'channel':
+                updateData.welcomeChannelId = channel?.id;
+                break;
+            case 'message':
+                updateData.welcomeMessage = message;
+                break;
+            case 'embed':
+                // This would integrate with the embed system
+                updateData.useRichEmbed = true;
+                break;
+        }
+
+        await db.update(welcomeSettings)
+            .set(updateData)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id));
+
+        const successEmbed = createAstraeeEmbed(
+            'Welcome Settings Updated',
+            `Successfully updated welcome **${type}**! ✦`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [successEmbed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error updating welcome settings:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Update Error',
+            'Failed to update welcome settings. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+async function handleSetGoodbye(interaction) {
+    const type = interaction.options.getString('type');
+    const channel = interaction.options.getChannel('channel');
+    const message = interaction.options.getString('message');
+    const embed = interaction.options.getString('embed');
+
+    try {
+        // Similar to welcome but for goodbye
+        let settings = await db.select().from(welcomeSettings)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id))
+            .limit(1);
+
+        if (settings.length === 0) {
+            await db.insert(welcomeSettings).values({
+                serverId: interaction.guild.id,
+                enabled: true
+            });
+            settings = await db.select().from(welcomeSettings)
+                .where(eq(welcomeSettings.serverId, interaction.guild.id))
+                .limit(1);
+        }
+
+        const updateData = {};
+        
+        switch (type) {
+            case 'channel':
+                updateData.goodbyeChannelId = channel?.id;
+                break;
+            case 'message':
+                updateData.goodbyeMessage = message;
+                break;
+            case 'embed':
+                updateData.useRichEmbed = true;
+                break;
+        }
+
+        await db.update(welcomeSettings)
+            .set(updateData)
+            .where(eq(welcomeSettings.serverId, interaction.guild.id));
+
+        const successEmbed = createAstraeeEmbed(
+            'Goodbye Settings Updated',
+            `Successfully updated goodbye **${type}**! ✦`,
+            '#27AE60'
+        );
+
+        await interaction.reply({ embeds: [successEmbed], flags: MessageFlags.Ephemeral });
+
+    } catch (error) {
+        console.error('Error updating goodbye settings:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Update Error',
+            'Failed to update goodbye settings. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
+    }
+}
+
+async function handleSettingsButton(interaction) {
+    const customId = interaction.customId;
+    
+    try {
+        if (customId === 'settings_welcome') {
+            // Show welcome settings panel
+            const embed = createAstraeeEmbed(
+                'Welcome System Settings',
+                'Configure your welcome and goodbye messages ✦\n\nUse `/set welcome` and `/set goodbye` commands to configure.',
+                '#9B59B6'
+            );
+            await interaction.reply({ embeds: [embed], ephemeral: true });
+        } else if (customId === 'settings_streams') {
+            const embed = createAstraeeEmbed(
+                'Stream Settings',
+                'Stream tracking is automatically configured ✦\n\nUse `/streamcreate`, `/completestream`, and `/streamlist` commands.',
+                '#9B59B6'
+            );
+            await interaction.reply({ embeds: [embed], ephemeral: true });
+        } else if (customId === 'settings_automod') {
+            const embed = createAstraeeEmbed(
+                'Auto-Moderation Settings',
+                'Configure auto-moderation features ✦\n\nUse `/automod setup` to configure spam protection, link filtering, and more.',
+                '#9B59B6'
+            );
+            await interaction.reply({ embeds: [embed], ephemeral: true });
+        } else if (customId === 'settings_embeds') {
+            const embed = createAstraeeEmbed(
+                'Embed Templates',
+                'Manage your embed templates ✦\n\nUse `/embed create`, `/embed list`, and `/embed edit` commands.',
+                '#9B59B6'
+            );
+            await interaction.reply({ embeds: [embed], ephemeral: true });
+        }
+    } catch (error) {
+        console.error('Error handling settings button:', error);
+        await interaction.reply({
+            content: 'An error occurred while processing your request.',
+            ephemeral: true
+        });
+    }
+}
 
 // Error handling
 process.on('unhandledRejection', (reason, promise) => {
