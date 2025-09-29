@@ -309,61 +309,6 @@ const commands = [
                 .setName('panel')
                 .setDescription('Open the main settings panel')),
 
-    new SlashCommandBuilder()
-        .setName('set')
-        .setDescription('Configure specific settings')
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('welcome')
-                .setDescription('Configure welcome system')
-                .addStringOption(option =>
-                    option.setName('type')
-                        .setDescription('Type of welcome setting')
-                        .setRequired(false)
-                        .addChoices(
-                            { name: 'Channel', value: 'channel' },
-                            { name: 'Message', value: 'message' },
-                            { name: 'Embed', value: 'embed' }
-                        ))
-                .addChannelOption(option =>
-                    option.setName('channel')
-                        .setDescription('Channel for welcome messages')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('message')
-                        .setDescription('Welcome message content')
-                        .setMaxLength(2000)
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('embed')
-                        .setDescription('Embed template name to use')
-                        .setRequired(false)))
-        .addSubcommand(subcommand =>
-            subcommand
-                .setName('goodbye')
-                .setDescription('Configure goodbye system')
-                .addStringOption(option =>
-                    option.setName('type')
-                        .setDescription('Type of goodbye setting')
-                        .setRequired(false)
-                        .addChoices(
-                            { name: 'Channel', value: 'channel' },
-                            { name: 'Message', value: 'message' },
-                            { name: 'Embed', value: 'embed' }
-                        ))
-                .addChannelOption(option =>
-                    option.setName('channel')
-                        .setDescription('Channel for goodbye messages')
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('message')
-                        .setDescription('Goodbye message content')
-                        .setMaxLength(2000)
-                        .setRequired(false))
-                .addStringOption(option =>
-                    option.setName('embed')
-                        .setDescription('Embed template name to use')
-                        .setRequired(false))),
 
     // Stream Tracking Commands  
     new SlashCommandBuilder()
@@ -443,19 +388,18 @@ const commands = [
         .setName('welcomer')
         .setDescription('Manage welcome and goodbye system with elegant precision')
         .setDefaultMemberPermissions(PermissionFlagsBits.ManageGuild)
-        .addSubcommand(subcommand => subcommand.setName('setup').setDescription('Setup welcome system')
+        .addSubcommand(subcommand => subcommand.setName('setup').setDescription('Setup welcome system with interactive builder')
             .addChannelOption(option => option.setName('welcome_channel').setDescription('Channel for welcome messages'))
             .addChannelOption(option => option.setName('goodbye_channel').setDescription('Channel for goodbye messages'))
-            .addStringOption(option => option.setName('welcome_message').setDescription('Welcome message template (use {user} for username)'))
-            .addStringOption(option => option.setName('goodbye_message').setDescription('Goodbye message template (use {user} for username)')))
-        .addSubcommand(subcommand => subcommand.setName('embed').setDescription('Configure rich embed settings')
-            .addBooleanOption(option => option.setName('enabled').setDescription('Enable rich embeds').setRequired(true))
-            .addStringOption(option => option.setName('title').setDescription('Embed title'))
-            .addStringOption(option => option.setName('description').setDescription('Embed description'))
+            .addStringOption(option => option.setName('type').setDescription('Type of welcome message')
+                .addChoices(
+                    { name: 'Simple Text', value: 'text' },
+                    { name: 'Rich Embed', value: 'embed' }
+                ))
+            .addStringOption(option => option.setName('message').setDescription('Welcome message template (use {user} for username)'))
+            .addStringOption(option => option.setName('title').setDescription('Embed title (for rich embeds)'))
+            .addStringOption(option => option.setName('description').setDescription('Embed description (for rich embeds)'))
             .addStringOption(option => option.setName('color').setDescription('Embed color (hex code)'))
-            .addStringOption(option => option.setName('thumbnail').setDescription('Thumbnail URL'))
-            .addStringOption(option => option.setName('image').setDescription('Image URL'))
-            .addStringOption(option => option.setName('footer').setDescription('Footer text'))
             .addChannelOption(option => option.setName('rules_channel').setDescription('Rules channel for first steps'))
             .addChannelOption(option => option.setName('start_here_channel').setDescription('Start here channel for first steps'))
             .addChannelOption(option => option.setName('intro_channel').setDescription('Introduction channel for first steps')))
@@ -1306,9 +1250,6 @@ client.on('interactionCreate', async interaction => {
         }
         else if (commandName === 'settings') {
             await handleSettings(interaction);
-        }
-        else if (commandName === 'set') {
-            await handleSet(interaction);
         }
     } catch (error) {
         console.error(`Error handling ${commandName}:`, error);
@@ -2181,9 +2122,6 @@ async function handleWelcomer(interaction) {
             case 'setup':
                 await handleWelcomerSetup(interaction);
                 break;
-            case 'embed':
-                await handleWelcomerEmbed(interaction);
-                break;
             case 'toggle':
                 await handleWelcomerToggle(interaction);
                 break;
@@ -2214,8 +2152,14 @@ async function handleWelcomer(interaction) {
 async function handleWelcomerSetup(interaction) {
     const welcomeChannel = interaction.options.getChannel('welcome_channel');
     const goodbyeChannel = interaction.options.getChannel('goodbye_channel');
-    const welcomeMessage = interaction.options.getString('welcome_message');
-    const goodbyeMessage = interaction.options.getString('goodbye_message');
+    const type = interaction.options.getString('type') || 'text';
+    const message = interaction.options.getString('message');
+    const title = interaction.options.getString('title');
+    const description = interaction.options.getString('description');
+    const color = interaction.options.getString('color');
+    const rulesChannel = interaction.options.getChannel('rules_channel');
+    const startHereChannel = interaction.options.getChannel('start_here_channel');
+    const introChannel = interaction.options.getChannel('intro_channel');
 
     try {
         // Check if settings already exist
@@ -2223,14 +2167,31 @@ async function handleWelcomerSetup(interaction) {
             .where(eq(welcomeSettings.serverId, interaction.guild.id))
             .limit(1);
 
+        const updateData = {};
+        
+        if (welcomeChannel) updateData.welcomeChannelId = welcomeChannel.id;
+        if (goodbyeChannel) updateData.goodbyeChannelId = goodbyeChannel.id;
+        
+        if (type === 'text') {
+            updateData.useRichEmbed = false;
+            if (message) updateData.welcomeMessage = message;
+        } else if (type === 'embed') {
+            updateData.useRichEmbed = true;
+            if (title) updateData.embedTitle = title;
+            if (description) updateData.embedDescription = description;
+            if (color) updateData.embedColor = color;
+            if (message) updateData.welcomeMessage = message; // Fallback for embed description
+        }
+        
+        if (rulesChannel) updateData.rulesChannelId = rulesChannel.id;
+        if (startHereChannel) updateData.startHereChannelId = startHereChannel.id;
+        if (introChannel) updateData.introChannelId = introChannel.id;
+
         if (existingSettings.length > 0) {
             // Update existing settings
             await db.update(welcomeSettings)
                 .set({
-                    welcomeChannelId: welcomeChannel?.id || existingSettings[0].welcomeChannelId,
-                    goodbyeChannelId: goodbyeChannel?.id || existingSettings[0].goodbyeChannelId,
-                    welcomeMessage: welcomeMessage || existingSettings[0].welcomeMessage,
-                    goodbyeMessage: goodbyeMessage || existingSettings[0].goodbyeMessage,
+                    ...updateData,
                     updatedAt: new Date()
                 })
                 .where(eq(welcomeSettings.serverId, interaction.guild.id));
@@ -2238,16 +2199,16 @@ async function handleWelcomerSetup(interaction) {
             // Create new settings
             await db.insert(welcomeSettings).values({
                 serverId: interaction.guild.id,
-                welcomeChannelId: welcomeChannel?.id,
-                goodbyeChannelId: goodbyeChannel?.id,
-                welcomeMessage: welcomeMessage || 'Welcome to our constellation, {user}! ✦',
-                goodbyeMessage: goodbyeMessage || 'Farewell, {user}. May your light shine elsewhere. ✦'
+                enabled: true,
+                ...updateData,
+                welcomeMessage: message || 'Welcome to our constellation, {user}! ✦',
+                goodbyeMessage: 'Farewell, {user}. May your light shine elsewhere. ✦'
             });
         }
 
         const embed = createAstraeeEmbed(
             'Welcome System Configured',
-            `The welcome system has been configured with elegant precision.\n\n**Welcome Channel:** ${welcomeChannel ? welcomeChannel : 'Not set'}\n**Goodbye Channel:** ${goodbyeChannel ? goodbyeChannel : 'Not set'}\n**Welcome Message:** ${welcomeMessage || 'Default'}\n**Goodbye Message:** ${goodbyeMessage || 'Default'}`,
+            `The welcome system has been configured with elegant precision.\n\n**Welcome Channel:** ${welcomeChannel ? welcomeChannel : 'Not set'}\n**Goodbye Channel:** ${goodbyeChannel ? goodbyeChannel : 'Not set'}\n**Message Type:** ${type === 'embed' ? 'Rich Embed' : 'Simple Text'}\n**Rules Channel:** ${rulesChannel ? rulesChannel : 'Not set'}\n**Start Here Channel:** ${startHereChannel ? startHereChannel : 'Not set'}\n**Intro Channel:** ${introChannel ? introChannel : 'Not set'}`,
             '#9B59B6'
         );
 
@@ -2457,72 +2418,6 @@ async function handleWelcomerStatus(interaction) {
     }
 }
 
-// Welcomer embed handler - Configure rich embed settings
-async function handleWelcomerEmbed(interaction) {
-    const enabled = interaction.options.getBoolean('enabled');
-    const title = interaction.options.getString('title');
-    const description = interaction.options.getString('description');
-    const color = interaction.options.getString('color');
-    const thumbnail = interaction.options.getString('thumbnail');
-    const image = interaction.options.getString('image');
-    const footer = interaction.options.getString('footer');
-    const rulesChannel = interaction.options.getChannel('rules_channel');
-    const startHereChannel = interaction.options.getChannel('start_here_channel');
-    const introChannel = interaction.options.getChannel('intro_channel');
-
-    try {
-        // Check if settings already exist
-        const existingSettings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id))
-            .limit(1);
-
-        if (existingSettings.length > 0) {
-            // Update existing settings
-            await db.update(welcomeSettings)
-                .set({
-                    useRichEmbed: enabled,
-                    embedTitle: title || existingSettings[0].embedTitle,
-                    embedDescription: description || existingSettings[0].embedDescription,
-                    embedColor: color || existingSettings[0].embedColor,
-                    embedThumbnail: thumbnail || existingSettings[0].embedThumbnail,
-                    embedImage: image || existingSettings[0].embedImage,
-                    embedFooter: footer || existingSettings[0].embedFooter,
-                    rulesChannelId: rulesChannel?.id || existingSettings[0].rulesChannelId,
-                    startHereChannelId: startHereChannel?.id || existingSettings[0].startHereChannelId,
-                    introChannelId: introChannel?.id || existingSettings[0].introChannelId,
-                    updatedAt: new Date()
-                })
-                .where(eq(welcomeSettings.serverId, interaction.guild.id));
-        } else {
-            // Create new settings
-            await db.insert(welcomeSettings).values({
-                serverId: interaction.guild.id,
-                useRichEmbed: enabled,
-                embedTitle: title || '✦ A New Star Joins Us ✦',
-                embedDescription: description,
-                embedColor: color || '#9B59B6',
-                embedThumbnail: thumbnail,
-                embedImage: image,
-                embedFooter: footer || '✦ "Every arrival marks the start of a new chapter." - Astraee ✦',
-                rulesChannelId: rulesChannel?.id,
-                startHereChannelId: startHereChannel?.id,
-                introChannelId: introChannel?.id
-            });
-        }
-
-        const embed = createAstraeeEmbed(
-            'Rich Embed Configured',
-            `Rich embed settings have been configured with elegant precision.\n\n**Rich Embeds:** ${enabled ? 'Enabled ✨' : 'Disabled ❌'}\n**Title:** ${title || 'Default'}\n**Description:** ${description ? 'Custom' : 'Default'}\n**Color:** ${color || '#9B59B6'}\n**Thumbnail:** ${thumbnail ? 'Set' : 'Not set'}\n**Image:** ${image ? 'Set' : 'Not set'}\n**Footer:** ${footer ? 'Custom' : 'Default'}\n**Rules Channel:** ${rulesChannel || 'Not set'}\n**Start Here Channel:** ${startHereChannel || 'Not set'}\n**Intro Channel:** ${introChannel || 'Not set'}`,
-            '#9B59B6'
-        );
-
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error configuring welcomer embed:', error);
-        throw error;
-    }
-}
 
 // Reaction Role command handler - Manage reaction roles with elegant precision
 async function handleReactionRole(interaction) {
@@ -5913,6 +5808,20 @@ async function handleEmbedEdit(interaction) {
                     )
                 );
                 break;
+
+            case 'fields':
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('fields')
+                            .setLabel('Fields (JSON format)')
+                            .setStyle(TextInputStyle.Paragraph)
+                            .setPlaceholder('Enter fields in JSON format...')
+                            .setValue(template[0].fields || '')
+                            .setRequired(false)
+                    )
+                );
+                break;
         }
 
         await interaction.showModal(modal);
@@ -5993,6 +5902,97 @@ async function handleModalSubmit(interaction) {
                 ephemeral: true
             });
         }
+    }
+}
+
+// Process embed modal submission
+async function processEmbedModal(interaction, component, name) {
+    try {
+        const template = await db.select().from(embedTemplates)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ))
+            .limit(1);
+
+        if (template.length === 0) {
+            await interaction.reply({
+                content: 'Embed template not found.',
+                ephemeral: true
+            });
+            return;
+        }
+
+        const updateData = {};
+
+        switch (component) {
+            case 'basic':
+                const title = interaction.fields.getTextInputValue('title');
+                const description = interaction.fields.getTextInputValue('description');
+                const color = interaction.fields.getTextInputValue('color');
+                
+                updateData.title = title;
+                updateData.description = description;
+                updateData.color = color;
+                break;
+
+            case 'author':
+                const authorName = interaction.fields.getTextInputValue('author_name');
+                const authorIcon = interaction.fields.getTextInputValue('author_icon');
+                
+                updateData.authorName = authorName;
+                updateData.authorIcon = authorIcon;
+                break;
+
+            case 'footer':
+                const footerText = interaction.fields.getTextInputValue('footer_text');
+                const footerIcon = interaction.fields.getTextInputValue('footer_icon');
+                const timestamp = interaction.fields.getTextInputValue('timestamp');
+                
+                updateData.footerText = footerText;
+                updateData.footerIcon = footerIcon;
+                updateData.showTimestamp = timestamp.toLowerCase() === 'yes';
+                break;
+
+            case 'images':
+                const thumbnail = interaction.fields.getTextInputValue('thumbnail');
+                const image = interaction.fields.getTextInputValue('image');
+                
+                updateData.thumbnail = thumbnail;
+                updateData.image = image;
+                break;
+
+            case 'fields':
+                const fieldsData = interaction.fields.getTextInputValue('fields');
+                updateData.fields = fieldsData;
+                break;
+        }
+
+        await db.update(embedTemplates)
+            .set(updateData)
+            .where(and(
+                eq(embedTemplates.serverId, interaction.guild.id),
+                eq(embedTemplates.name, name)
+            ));
+
+        const embed = createAstraeeEmbed(
+            'Template Refined',
+            `Embed template "${name}" has been updated with elegant precision.\nYour changes have been preserved with ceremonial care.`,
+            '#9B59B6'
+        );
+
+        await interaction.reply({ embeds: [embed], ephemeral: true });
+
+    } catch (error) {
+        console.error('Error processing embed modal:', error);
+        
+        const embed = createAstraeeEmbed(
+            'Update Failed',
+            'Failed to update embed template. Please try again later.',
+            '#E74C3C'
+        );
+        
+        await interaction.reply({ embeds: [embed], ephemeral: true });
     }
 }
 
@@ -6209,6 +6209,20 @@ async function showEmbedEditModal(interaction, component, name) {
                             .setStyle(TextInputStyle.Short)
                             .setPlaceholder('https://cdn.example.com/image.png')
                             .setValue(template[0].image || '')
+                            .setRequired(false)
+                    )
+                );
+                break;
+
+            case 'fields':
+                modal.addComponents(
+                    new ActionRowBuilder().addComponents(
+                        new TextInputBuilder()
+                            .setCustomId('fields')
+                            .setLabel('Fields (JSON format)')
+                            .setStyle(TextInputStyle.Paragraph)
+                            .setPlaceholder('Enter fields in JSON format...')
+                            .setValue(template[0].fields || '')
                             .setRequired(false)
                     )
                 );
@@ -7006,33 +7020,6 @@ async function handleSettings(interaction) {
     }
 }
 
-async function handleSet(interaction) {
-    const subcommand = interaction.options.getSubcommand();
-
-    try {
-        switch (subcommand) {
-            case 'welcome':
-                await handleSetWelcome(interaction);
-                break;
-            case 'goodbye':
-                await handleSetGoodbye(interaction);
-                break;
-        }
-    } catch (error) {
-        console.error('Error in set command:', error);
-        
-        const errorEmbed = createAstraeeEmbed(
-            'Configuration Error',
-            'An error occurred while configuring settings. Please try again later.',
-            '#E74C3C'
-        );
-        
-        await interaction.reply({ 
-            embeds: [errorEmbed], 
-            flags: MessageFlags.Ephemeral 
-        });
-    }
-}
 
 async function handleSettingsPanel(interaction) {
     try {
@@ -7110,76 +7097,6 @@ async function handleSettingsPanel(interaction) {
     }
 }
 
-async function handleSetWelcome(interaction) {
-    const type = interaction.options.getString('type');
-    const channel = interaction.options.getChannel('channel');
-    const message = interaction.options.getString('message');
-    const embed = interaction.options.getString('embed');
-
-    if (!type) {
-        const errorEmbed = createAstraeeEmbed(
-            'Type Required',
-            'Please specify the type of welcome setting (channel, message, or embed).',
-            '#E74C3C'
-        );
-        return interaction.reply({ embeds: [errorEmbed], flags: MessageFlags.Ephemeral });
-    }
-
-    try {
-        // Get or create welcome settings
-        let settings = await db.select().from(welcomeSettings)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id))
-            .limit(1);
-
-        if (settings.length === 0) {
-            await db.insert(welcomeSettings).values({
-                serverId: interaction.guild.id,
-                enabled: true
-            });
-            settings = await db.select().from(welcomeSettings)
-                .where(eq(welcomeSettings.serverId, interaction.guild.id))
-                .limit(1);
-        }
-
-        const updateData = {};
-        
-        switch (type) {
-            case 'channel':
-                updateData.welcomeChannelId = channel?.id;
-                break;
-            case 'message':
-                updateData.welcomeMessage = message;
-                break;
-            case 'embed':
-                // This would integrate with the embed system
-                updateData.useRichEmbed = true;
-                break;
-        }
-
-        await db.update(welcomeSettings)
-            .set(updateData)
-            .where(eq(welcomeSettings.serverId, interaction.guild.id));
-
-        const successEmbed = createAstraeeEmbed(
-            'Welcome Settings Updated',
-            `Successfully updated welcome **${type}**! ✦`,
-            '#27AE60'
-        );
-
-        await interaction.reply({ embeds: [successEmbed], flags: MessageFlags.Ephemeral });
-
-    } catch (error) {
-        console.error('Error updating welcome settings:', error);
-        
-        const embed = createAstraeeEmbed(
-            'Update Error',
-            'Failed to update welcome settings. Please try again later.',
-            '#E74C3C'
-        );
-        
-        await interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
-    }
-}
 
 async function handleSetGoodbye(interaction) {
     const type = interaction.options.getString('type');
@@ -7259,7 +7176,7 @@ async function handleSettingsButton(interaction) {
             // Show welcome settings panel
             const embed = createAstraeeEmbed(
                 'Welcome System Settings',
-                'Configure your welcome and goodbye messages ✦\n\nUse `/set welcome` and `/set goodbye` commands to configure.',
+                'Configure your welcome and goodbye messages ✦\n\nUse `/welcomer setup` command to configure.',
                 '#9B59B6'
             );
             await interaction.reply({ embeds: [embed], ephemeral: true });
