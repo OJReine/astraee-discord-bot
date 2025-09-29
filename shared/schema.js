@@ -153,12 +153,19 @@ const userLevels = pgTable('user_levels', {
 const scheduledMessages = pgTable('scheduled_messages', {
   id: serial('id').primaryKey(),
   serverId: text('server_id').notNull(),
+  name: text('name').notNull(),
   channelId: text('channel_id').notNull(),
   message: text('message').notNull(),
-  scheduledFor: timestamp('scheduled_for').notNull(),
+  scheduleType: text('schedule_type').notNull(), // 'once', 'daily', 'weekly', 'monthly'
+  date: text('date'), // For one-time messages (YYYY-MM-DD)
+  time: text('time').notNull(), // HH:MM format
+  dayOfWeek: integer('day_of_week'), // 0-6 for weekly (0 = Sunday)
+  dayOfMonth: integer('day_of_month'), // 1-31 for monthly
+  pingRoleId: text('ping_role_id'), // Role to ping
+  enabled: boolean('enabled').default(true),
   createdBy: text('created_by').notNull(),
-  executed: boolean('executed').default(false),
-  createdAt: timestamp('created_at').defaultNow().notNull()
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+  updatedAt: timestamp('updated_at').defaultNow().notNull()
 });
 
 // Auto-moderation settings
