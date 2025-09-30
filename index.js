@@ -725,8 +725,7 @@ client.once('ready', async () => {
         await client.application?.commands.set(commands);
         console.log('✦ Commands registered with ceremonial precision ✦');
         
-        // Start scheduled message system
-        startScheduledMessageSystem();
+        // Scheduled message system will be implemented when needed
         
     } catch (error) {
         console.error('Error registering commands:', error);
